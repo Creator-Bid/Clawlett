@@ -216,6 +216,8 @@ function parseArgs() {
         rpc: process.env.BASE_RPC_URL || DEFAULT_RPC_URL,
         slippage: 0.05, // 5% - value between 0 and 0.5
         execute: false,
+        maxBalanceUsagePct: Number(process.env.MAX_BALANCE_USAGE_PCT || 25),
+        minSafeEthReserve: process.env.MIN_SAFE_ETH_RESERVE || '0.001',
     }
 
     for (let i = 0; i < args.length; i++) {
@@ -238,6 +240,12 @@ function parseArgs() {
             case '--execute':
             case '-x':
                 result.execute = true
+                break
+            case '--max-balance-usage-pct':
+                result.maxBalanceUsagePct = Number(args[++i])
+                break
+            case '--min-safe-eth-reserve':
+                result.minSafeEthReserve = args[++i]
                 break
             case '--config-dir':
             case '-c':
@@ -267,6 +275,8 @@ Arguments:
   --amount, -a     Amount to swap
   --slippage       Slippage 0-0.5 (default: 0.05 = 5%)
   --execute, -x    Execute swap (default: quote only)
+  --max-balance-usage-pct  Max % of token balance allowed per trade (default env MAX_BALANCE_USAGE_PCT or 25)
+  --min-safe-eth-reserve   Min ETH to keep in Safe (default env MIN_SAFE_ETH_RESERVE or 0.001)
   --config-dir, -c Config directory
   --rpc, -r        RPC URL (default: ${DEFAULT_RPC_URL})
 
@@ -339,6 +349,23 @@ async function main() {
     if (balance < amountIn) {
         console.error(`\n❌ Insufficient balance`)
         process.exit(1)
+    }
+
+    // Risk guardrail #1: max balance usage per trade
+    const usagePct = Number((Number(amountIn) * 100 / Number(balance)).toFixed(2))
+    if (args.maxBalanceUsagePct > 0 && usagePct > args.maxBalanceUsagePct) {
+        console.error(`\n❌ Risk guard: trade uses ${usagePct}% of balance, above cap ${args.maxBalanceUsagePct}%`)
+        process.exit(1)
+    }
+
+    // Risk guardrail #2: keep ETH reserve in Safe after ETH-in trade
+    if (tokenIn.address.toLowerCase() === NATIVE_ETH || tokenIn.address.toLowerCase() === CONTRACTS.WETH.toLowerCase()) {
+        const reserveWei = ethers.parseEther(String(args.minSafeEthReserve))
+        const remaining = balance - amountIn
+        if (remaining < reserveWei) {
+            console.error(`\n❌ Risk guard: ETH reserve breach. Remaining ${ethers.formatEther(remaining)} ETH < required ${args.minSafeEthReserve} ETH`)
+            process.exit(1)
+        }
     }
 
     console.log('\n📊 Getting quote...\n')

@@ -137,6 +137,8 @@ Config is stored in `config/wallet.json` after initialization:
 | `BASE_RPC_URL` | `https://mainnet.base.org` | Base RPC endpoint |
 | `WALLET_CONFIG_DIR` | `./config` | Config directory |
 | `QUOTE_API_URL` | Production API | Quote/routing API |
+| `MAX_BALANCE_USAGE_PCT` | `25` | Risk guardrail: max % of token balance per trade |
+| `MIN_SAFE_ETH_RESERVE` | `0.001` | Risk guardrail: minimum ETH to keep in Safe |
 
 ## Contracts
 
