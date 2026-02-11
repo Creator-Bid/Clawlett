@@ -88,6 +88,9 @@ node clawlett/scripts/swap.js --from ETH --to USDC --amount 0.1
 # Execute swap
 node clawlett/scripts/swap.js --from ETH --to USDC --amount 0.1 --execute
 
+# Agent-friendly JSON quote output
+node clawlett/scripts/swap.js --from ETH --to USDC --amount 0.1 --json
+
 # Swap by address (for tokens not in verified list)
 node clawlett/scripts/swap.js --from USDC --to 0xa1832f7f4e534ae557f9b5ab76de54b1873e498b --amount 100 --execute
 ```

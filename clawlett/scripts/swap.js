@@ -216,6 +216,7 @@ function parseArgs() {
         rpc: process.env.BASE_RPC_URL || DEFAULT_RPC_URL,
         slippage: 0.05, // 5% - value between 0 and 0.5
         execute: false,
+        json: false,
     }
 
     for (let i = 0; i < args.length; i++) {
@@ -238,6 +239,9 @@ function parseArgs() {
             case '--execute':
             case '-x':
                 result.execute = true
+                break
+            case '--json':
+                result.json = true
                 break
             case '--config-dir':
             case '-c':
@@ -267,6 +271,7 @@ Arguments:
   --amount, -a     Amount to swap
   --slippage       Slippage 0-0.5 (default: 0.05 = 5%)
   --execute, -x    Execute swap (default: quote only)
+  --json          JSON output mode (agent-friendly)
   --config-dir, -c Config directory
   --rpc, -r        RPC URL (default: ${DEFAULT_RPC_URL})
 
@@ -281,6 +286,7 @@ Examples:
 
 async function main() {
     const args = parseArgs()
+    const log = (...x) => { if (!args.json) console.log(...x) }
 
     if (!args.from || !args.to || !args.amount) {
         console.error('Error: --from, --to, and --amount are required')
@@ -298,14 +304,14 @@ async function main() {
 
     const provider = new ethers.JsonRpcProvider(args.rpc)
 
-    console.log('\n🔍 Resolving tokens...\n')
+    log('\n🔍 Resolving tokens...\n')
 
     let tokenIn, tokenOut
     try {
         tokenIn = await resolveToken(args.from, provider)
-        console.log(`From: ${tokenIn.symbol} ${tokenIn.verified ? '✅' : '⚠️'}`)
-        console.log(`      ${tokenIn.address}`)
-        if (tokenIn.warning) console.log(`\n${tokenIn.warning}\n`)
+        log(`From: ${tokenIn.symbol} ${tokenIn.verified ? '✅' : '⚠️'}`)
+        log(`      ${tokenIn.address}`)
+        if (tokenIn.warning) log(`\n${tokenIn.warning}\n`)
     } catch (error) {
         console.error(`\n❌ ${error.message}`)
         process.exit(1)
@@ -313,16 +319,16 @@ async function main() {
 
     try {
         tokenOut = await resolveToken(args.to, provider)
-        console.log(`To:   ${tokenOut.symbol} ${tokenOut.verified ? '✅' : '⚠️'}`)
-        console.log(`      ${tokenOut.address}`)
-        if (tokenOut.warning) console.log(`\n${tokenOut.warning}\n`)
+        log(`To:   ${tokenOut.symbol} ${tokenOut.verified ? '✅' : '⚠️'}`)
+        log(`      ${tokenOut.address}`)
+        if (tokenOut.warning) log(`\n${tokenOut.warning}\n`)
     } catch (error) {
         console.error(`\n❌ ${error.message}`)
         process.exit(1)
     }
 
     const amountIn = ethers.parseUnits(args.amount, tokenIn.decimals)
-    console.log(`\nAmount: ${formatAmount(amountIn, tokenIn.decimals, tokenIn.symbol)}`)
+    log(`\nAmount: ${formatAmount(amountIn, tokenIn.decimals, tokenIn.symbol)}`)
 
     // Check balance
     const safeAddress = config.safe
@@ -334,14 +340,14 @@ async function main() {
         const tokenContract = new ethers.Contract(tokenIn.address, ERC20_ABI, provider)
         balance = await tokenContract.balanceOf(safeAddress)
     }
-    console.log(`Safe balance: ${formatAmount(balance, tokenIn.decimals, tokenIn.symbol)}`)
+    log(`Safe balance: ${formatAmount(balance, tokenIn.decimals, tokenIn.symbol)}`)
 
     if (balance < amountIn) {
         console.error(`\n❌ Insufficient balance`)
         process.exit(1)
     }
 
-    console.log('\n📊 Getting quote...\n')
+    log('\n📊 Getting quote...\n')
 
     let quote
     try {
@@ -353,22 +359,37 @@ async function main() {
 
     const minAmountOut = quote.minAmountOut || (quote.amountOut * BigInt(100 - args.slippage) / 100n)
 
-    console.log('═══════════════════════════════════════════════════════')
-    console.log('                    SWAP SUMMARY')
-    console.log('═══════════════════════════════════════════════════════')
-    console.log(`  You pay:      ${formatAmount(amountIn, tokenIn.decimals, tokenIn.symbol)}`)
-    console.log(`  You receive:  ${formatAmount(quote.amountOut, tokenOut.decimals, tokenOut.symbol)}`)
-    console.log(`  Min receive:  ${formatAmount(minAmountOut, tokenOut.decimals, tokenOut.symbol)} (${args.slippage}% slippage)`)
-    console.log(`  Route:        ${quote.isMultiHop ? `${tokenIn.symbol} → ... → ${tokenOut.symbol}` : `${tokenIn.symbol} → ${tokenOut.symbol}`}`)
-    console.log('═══════════════════════════════════════════════════════')
+    log('═══════════════════════════════════════════════════════')
+    log('                    SWAP SUMMARY')
+    log('═══════════════════════════════════════════════════════')
+    log(`  You pay:      ${formatAmount(amountIn, tokenIn.decimals, tokenIn.symbol)}`)
+    log(`  You receive:  ${formatAmount(quote.amountOut, tokenOut.decimals, tokenOut.symbol)}`)
+    log(`  Min receive:  ${formatAmount(minAmountOut, tokenOut.decimals, tokenOut.symbol)} (${args.slippage}% slippage)`)
+    log(`  Route:        ${quote.isMultiHop ? `${tokenIn.symbol} → ... → ${tokenOut.symbol}` : `${tokenIn.symbol} → ${tokenOut.symbol}`}`)
+    log('═══════════════════════════════════════════════════════')
 
     if (!args.execute) {
-        console.log('\n📋 QUOTE ONLY - Add --execute to perform the swap')
-        console.log(`\nTo execute: node swap.js --from "${args.from}" --to "${args.to}" --amount ${args.amount} --execute`)
+        if (args.json) {
+            console.log(JSON.stringify({
+                mode: 'quote',
+                from: { symbol: tokenIn.symbol, address: tokenIn.address, amount: args.amount },
+                to: { symbol: tokenOut.symbol, address: tokenOut.address },
+                quote: {
+                    amountOut: quote.amountOut.toString(),
+                    minAmountOut: minAmountOut.toString(),
+                    slippage: args.slippage,
+                    route: quote.route || null,
+                    isMultiHop: !!quote.isMultiHop,
+                },
+            }, null, 2))
+        } else {
+            log('\n📋 QUOTE ONLY - Add --execute to perform the swap')
+            log(`\nTo execute: node swap.js --from "${args.from}" --to "${args.to}" --amount ${args.amount} --execute`)
+        }
         process.exit(0)
     }
 
-    console.log('\n🚀 Executing swap...\n')
+    log('\n🚀 Executing swap...\n')
 
     const agentPkPath = path.join(args.configDir, 'agent.pk')
     if (!fs.existsSync(agentPkPath)) {
@@ -409,7 +430,7 @@ async function main() {
         }
 
         if (allowance < amountIn) {
-            console.log(`Approving token for router...`)
+            log(`Approving token for router...`)
             const approvalInterface = new ethers.Interface(APPROVAL_HELPER_ABI)
             const approveData = approvalInterface.encodeFunctionData('approveForRouter', [
                 tokenIn.address,
@@ -425,7 +446,7 @@ async function main() {
                 true
             )
             await approveTx.wait()
-            console.log('Approved!')
+            log('Approved!')
         }
     }
 
@@ -439,7 +460,7 @@ async function main() {
         true
     )
 
-    console.log(`Transaction: ${tx.hash}`)
+    log(`Transaction: ${tx.hash}`)
     const receipt = await tx.wait()
 
     if (receipt.status === 1) {
@@ -451,10 +472,24 @@ async function main() {
             newBalance = await outContract.balanceOf(safeAddress)
         }
 
-        console.log('\n✅ SWAP COMPLETE')
-        console.log(`   New ${tokenOut.symbol} balance: ${formatAmount(newBalance, tokenOut.decimals, tokenOut.symbol)}`)
-        console.log(`   Tx: ${tx.hash}`)
+        if (args.json) {
+            console.log(JSON.stringify({
+                mode: 'execute',
+                status: 'success',
+                txHash: tx.hash,
+                tokenOut: tokenOut.symbol,
+                newBalance: newBalance.toString(),
+                decimals: tokenOut.decimals,
+            }, null, 2))
+        } else {
+            log('\n✅ SWAP COMPLETE')
+            log(`   New ${tokenOut.symbol} balance: ${formatAmount(newBalance, tokenOut.decimals, tokenOut.symbol)}`)
+            log(`   Tx: ${tx.hash}`)
+        }
     } else {
+        if (args.json) {
+            console.log(JSON.stringify({ mode: 'execute', status: 'failed' }, null, 2))
+        }
         console.error('\n❌ Transaction failed')
         process.exit(1)
     }
