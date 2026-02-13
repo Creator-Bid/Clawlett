@@ -21,45 +21,12 @@
  *
  * ETH is auto-wrapped to WETH when needed (CoW requires ERC20s)
  */
-
+import { VERIFIED_TOKENS, TOKEN_ALIASES, PROTECTED_SYMBOLS } from './lib/tokens.js'
 import { ethers } from 'ethers'
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import { VERIFIED_TOKENS, ERC20_ABI, resolveToken } from './tokens.js'
-
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
-
-const DEFAULT_RPC_URL = 'https://mainnet.base.org'
-
-// Contracts
-const WETH_ADDRESS = '0x4200000000000000000000000000000000000006'
-const NATIVE_ETH = '0x0000000000000000000000000000000000000000'
-
-// CoW Protocol constants
-const COW_API_BASE = 'https://api.cow.fi/base'
-const COW_SETTLEMENT = '0x9008D19f58AAbD9eD0D60971565AA8510560ab41'
-const COW_VAULT_RELAYER = '0xC92E8bdf79f0507f65a392b0ab4667716BFE0110'
-
-// bytes32 keccak hashes for order struct fields
-const KIND_SELL = '0xf3b277728b3fee749481eb3e0b3b48980dbbab78658fc419025cb16eee346775'
-const KIND_BUY = '0x6ed88e868af0a1983e3886d5f3e95a2fafbd6c3450bc229e27342283dc429ccc'
-const BALANCE_ERC20 = '0x5a28e9363bb942b639270062aa6bb295f434bcdfc42c97267bf003f272060dc9'
-
-// ABIs
-const ROLES_ABI = [
-    'function execTransactionWithRole(address to, uint256 value, bytes data, uint8 operation, bytes32 roleKey, bool shouldRevert) returns (bool)',
-]
-
-const COW_PRESIGN_ABI = [
-    'function cowPreSign(tuple(address sellToken, address buyToken, address receiver, uint256 sellAmount, uint256 buyAmount, uint32 validTo, bytes32 appData, uint256 feeAmount, bytes32 kind, bool partiallyFillable, bytes32 sellTokenBalance, bytes32 buyTokenBalance) order, bytes orderUid) external',
-]
-
-const ZODIAC_HELPERS_ABI = [
-    'function wrapETH(uint256 amount) external',
-    'function unwrapWETH(uint256 amount) external',
-]
 
 // ============================================================================
 // COW PROTOCOL API
