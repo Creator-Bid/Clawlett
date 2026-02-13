@@ -14,10 +14,14 @@
  * - Gets quote before execution
  * - Presigns orders via Zodiac Roles delegatecall
  * - Polls order status until filled
+ * - Risk guardrails (max balance usage, ETH reserve)
+ * - JSON output mode for agent orchestration
+ * - Automatic trade history logging for PnL tracking
  *
  * Usage:
  *   node swap.js --from ETH --to USDC --amount 0.1
  *   node swap.js --from USDC --to ETH --amount 100 --execute
+ *   node swap.js --from ETH --to USDC --amount 0.1 --json
  *
  * ETH is auto-wrapped to WETH when needed (CoW requires ERC20s)
  */
@@ -233,6 +237,38 @@ function formatAmount(amount, decimals, symbol) {
     return `${num.toLocaleString(undefined, { maximumFractionDigits: 6 })} ${symbol}`
 }
 
+// ============================================================================
+// TRADE HISTORY
+// ============================================================================
+
+function recordTrade(trade, configDir) {
+    try {
+        const historyPath = path.join(configDir, 'trade-history.json')
+        let history = { trades: [], startedAt: new Date().toISOString() }
+        if (fs.existsSync(historyPath)) {
+            history = JSON.parse(fs.readFileSync(historyPath, 'utf8'))
+        }
+        history.trades.push({
+            id: history.trades.length + 1,
+            timestamp: new Date().toISOString(),
+            orderUid: trade.orderUid,
+            tokenIn: { symbol: trade.tokenIn.symbol, address: trade.tokenIn.address },
+            tokenOut: { symbol: trade.tokenOut.symbol, address: trade.tokenOut.address },
+            amountIn: trade.amountIn,
+            amountOut: trade.amountOut,
+            decimalsIn: trade.tokenIn.decimals,
+            decimalsOut: trade.tokenOut.decimals,
+        })
+        fs.writeFileSync(historyPath, JSON.stringify(history, null, 2))
+    } catch {
+        // Non-critical: don't fail the swap if history logging fails
+    }
+}
+
+// ============================================================================
+// MAIN
+// ============================================================================
+
 function loadConfig(configDir) {
     const configPath = path.join(configDir, 'wallet.json')
     if (!fs.existsSync(configPath)) {
@@ -252,6 +288,9 @@ function parseArgs() {
         slippage: 0.05,
         execute: false,
         timeout: 1800, // 30 minutes default (matches CoW FE)
+        json: false,
+        maxBalanceUsagePct: Number(process.env.MAX_BALANCE_USAGE_PCT || 25),
+        minSafeEthReserve: process.env.MIN_SAFE_ETH_RESERVE || '0.001',
     }
 
     for (let i = 0; i < args.length; i++) {
@@ -277,6 +316,15 @@ function parseArgs() {
                 break
             case '--timeout':
                 result.timeout = parseInt(args[++i])
+                break
+            case '--json':
+                result.json = true
+                break
+            case '--max-balance-usage-pct':
+                result.maxBalanceUsagePct = Number(args[++i])
+                break
+            case '--min-safe-eth-reserve':
+                result.minSafeEthReserve = args[++i]
                 break
             case '--config-dir':
             case '-c':
@@ -309,6 +357,9 @@ Arguments:
   --slippage       Slippage 0-0.5 (default: 0.05 = 5%)
   --execute, -x    Execute swap (default: quote only)
   --timeout        Order timeout in seconds (default: 1800 = 30min)
+  --json           JSON output mode (agent-friendly)
+  --max-balance-usage-pct  Max % of token balance per trade (default: 25)
+  --min-safe-eth-reserve   Min ETH to keep in Safe (default: 0.001)
   --config-dir, -c Config directory
   --rpc, -r        RPC URL (default: ${DEFAULT_RPC_URL})
 
@@ -325,6 +376,7 @@ Examples:
   node swap.js --from ETH --to USDC --amount 0.1
   node swap.js --from USDC --to WETH --amount 100 --execute
   node swap.js --from USDC --to DAI --amount 50 --execute --timeout 600
+  node swap.js --from ETH --to USDC --amount 0.1 --json
 `)
 }
 
@@ -334,6 +386,7 @@ Examples:
 
 async function main() {
     const args = parseArgs()
+    const log = (...msg) => { if (!args.json) console.log(...msg) }
 
     if (!args.from || !args.to || !args.amount) {
         console.error('Error: --from, --to, and --amount are required')
@@ -352,7 +405,7 @@ async function main() {
     const provider = new ethers.JsonRpcProvider(args.rpc)
     const safeAddress = config.safe
 
-    console.log('\nResolving tokens...\n')
+    log('\nResolving tokens...\n')
 
     let tokenIn, tokenOut
     try {
@@ -372,26 +425,26 @@ async function main() {
     // CoW Protocol only works with ERC20s - substitute ETH with WETH
     let ethSubstituted = false
     if (tokenIn.address.toLowerCase() === NATIVE_ETH) {
-        console.log('Note: CoW Protocol requires ERC20 tokens. Using WETH instead of ETH.')
+        log('Note: CoW Protocol requires ERC20 tokens. Using WETH instead of ETH.')
         tokenIn = { ...tokenIn, address: WETH_ADDRESS, symbol: 'WETH' }
         ethSubstituted = true
     }
     if (tokenOut.address.toLowerCase() === NATIVE_ETH) {
-        console.log('Note: CoW Protocol requires ERC20 tokens. Receiving WETH instead of ETH.')
+        log('Note: CoW Protocol requires ERC20 tokens. Receiving WETH instead of ETH.')
         tokenOut = { ...tokenOut, address: WETH_ADDRESS, symbol: 'WETH' }
         ethSubstituted = true
     }
 
-    console.log(`From: ${tokenIn.symbol} ${tokenIn.verified ? '(verified)' : '(unverified)'}`)
-    console.log(`      ${tokenIn.address}`)
-    if (tokenIn.warning) console.log(`\n${tokenIn.warning}\n`)
+    log(`From: ${tokenIn.symbol} ${tokenIn.verified ? '(verified)' : '(unverified)'}`)
+    log(`      ${tokenIn.address}`)
+    if (tokenIn.warning) log(`\n${tokenIn.warning}\n`)
 
-    console.log(`To:   ${tokenOut.symbol} ${tokenOut.verified ? '(verified)' : '(unverified)'}`)
-    console.log(`      ${tokenOut.address}`)
-    if (tokenOut.warning) console.log(`\n${tokenOut.warning}\n`)
+    log(`To:   ${tokenOut.symbol} ${tokenOut.verified ? '(verified)' : '(unverified)'}`)
+    log(`      ${tokenOut.address}`)
+    if (tokenOut.warning) log(`\n${tokenOut.warning}\n`)
 
     const amountIn = ethers.parseUnits(args.amount, tokenIn.decimals)
-    console.log(`\nAmount: ${formatAmount(amountIn, tokenIn.decimals, tokenIn.symbol)}`)
+    log(`\nAmount: ${formatAmount(amountIn, tokenIn.decimals, tokenIn.symbol)}`)
 
     // Check balance — when selling ETH via CoW, check both ETH and WETH
     let balance
@@ -401,15 +454,15 @@ async function main() {
         const wethBalance = await wethContract.balanceOf(safeAddress)
         const ethBalance = await provider.getBalance(safeAddress)
 
-        console.log(`Safe WETH balance: ${formatAmount(wethBalance, 18, 'WETH')}`)
-        console.log(`Safe ETH balance:  ${formatAmount(ethBalance, 18, 'ETH')}`)
+        log(`Safe WETH balance: ${formatAmount(wethBalance, 18, 'WETH')}`)
+        log(`Safe ETH balance:  ${formatAmount(ethBalance, 18, 'ETH')}`)
 
         if (wethBalance >= amountIn) {
             balance = wethBalance
         } else if (wethBalance + ethBalance >= amountIn) {
             wrapAmount = amountIn - wethBalance
             balance = amountIn // sufficient after wrapping
-            console.log(`Will wrap ${formatAmount(wrapAmount, 18, 'ETH')} to WETH as part of the swap transaction`)
+            log(`Will wrap ${formatAmount(wrapAmount, 18, 'ETH')} to WETH as part of the swap transaction`)
         } else {
             console.error(`\nInsufficient ETH + WETH balance in Safe`)
             console.error(`Need ${formatAmount(amountIn, 18, 'WETH')}, have ${formatAmount(wethBalance, 18, 'WETH')} + ${formatAmount(ethBalance, 18, 'ETH')}`)
@@ -418,7 +471,7 @@ async function main() {
     } else {
         const tokenContract = new ethers.Contract(tokenIn.address, ERC20_ABI, provider)
         balance = await tokenContract.balanceOf(safeAddress)
-        console.log(`Safe balance: ${formatAmount(balance, tokenIn.decimals, tokenIn.symbol)}`)
+        log(`Safe balance: ${formatAmount(balance, tokenIn.decimals, tokenIn.symbol)}`)
 
         if (balance < amountIn) {
             console.error(`\nInsufficient ${tokenIn.symbol} balance in Safe`)
@@ -426,8 +479,28 @@ async function main() {
         }
     }
 
+    // Risk guardrail: max balance usage per trade
+    if (args.maxBalanceUsagePct > 0 && balance > 0n) {
+        const usagePct = Number((amountIn * 10000n / balance)) / 100
+        if (usagePct > args.maxBalanceUsagePct) {
+            console.error(`\nRisk guard: trade uses ${usagePct.toFixed(1)}% of balance, above cap ${args.maxBalanceUsagePct}%`)
+            process.exit(1)
+        }
+    }
+
+    // Risk guardrail: keep ETH reserve in Safe after ETH/WETH trade
+    if (ethSubstituted && tokenIn.address.toLowerCase() === WETH_ADDRESS.toLowerCase()) {
+        const ethBalance = await provider.getBalance(safeAddress)
+        const reserveWei = ethers.parseEther(String(args.minSafeEthReserve))
+        const remainingEth = ethBalance - (wrapAmount > 0n ? wrapAmount : 0n)
+        if (remainingEth < reserveWei) {
+            console.error(`\nRisk guard: ETH reserve breach. Remaining ${ethers.formatEther(remainingEth)} ETH < required ${args.minSafeEthReserve} ETH`)
+            process.exit(1)
+        }
+    }
+
     // Get CoW quote
-    console.log('\nGetting CoW Protocol quote...\n')
+    log('\nGetting CoW Protocol quote...\n')
 
     let quoteResponse
     try {
@@ -443,12 +516,12 @@ async function main() {
     const buyAmount = BigInt(q.buyAmount)
     const feeAmount = BigInt(q.feeAmount)
 
-    console.log('='.repeat(55))
-    console.log('                    SWAP SUMMARY')
-    console.log('='.repeat(55))
-    console.log(`  You pay:      ${formatAmount(amountIn, tokenIn.decimals, tokenIn.symbol)}`)
-    console.log(`  Fee:          ${formatAmount(feeAmount, tokenIn.decimals, tokenIn.symbol)}`)
-    console.log(`  You sell:     ${formatAmount(sellAmount, tokenIn.decimals, tokenIn.symbol)} (after fee)`)
+    log('='.repeat(55))
+    log('                    SWAP SUMMARY')
+    log('='.repeat(55))
+    log(`  You pay:      ${formatAmount(amountIn, tokenIn.decimals, tokenIn.symbol)}`)
+    log(`  Fee:          ${formatAmount(feeAmount, tokenIn.decimals, tokenIn.symbol)}`)
+    log(`  You sell:     ${formatAmount(sellAmount, tokenIn.decimals, tokenIn.symbol)} (after fee)`)
     // Smart slippage for display (same formula as submitCowOrder)
     const displayFeeSlippage = feeAmount * 3n / 2n
     const displayVolSlippage = sellAmount * 5n / 1000n
@@ -458,18 +531,34 @@ async function main() {
         : buyAmount * 5n / 1000n
     const minReceive = buyAmount - displayBuySlippage
     const slippagePct = Number(displayBuySlippage * 10000n / buyAmount) / 100
-    console.log(`  You receive:  ~${formatAmount(buyAmount, tokenOut.decimals, tokenOut.symbol)}`)
-    console.log(`  Min receive:  ${formatAmount(minReceive, tokenOut.decimals, tokenOut.symbol)} (${slippagePct.toFixed(2)}% smart slippage)`)
-    console.log(`  Expires in:   ${args.timeout}s`)
+    log(`  You receive:  ~${formatAmount(buyAmount, tokenOut.decimals, tokenOut.symbol)}`)
+    log(`  Min receive:  ${formatAmount(minReceive, tokenOut.decimals, tokenOut.symbol)} (${slippagePct.toFixed(2)}% smart slippage)`)
+    log(`  Expires in:   ${args.timeout}s`)
     if (wrapAmount > 0n) {
-        console.log(`  ETH wrap:     ${formatAmount(wrapAmount, 18, 'ETH')} → WETH (bundled in tx)`)
+        log(`  ETH wrap:     ${formatAmount(wrapAmount, 18, 'ETH')} -> WETH (bundled in tx)`)
     }
-    console.log(`  MEV protected via CoW Protocol batch auction`)
-    console.log('='.repeat(55))
+    log(`  MEV protected via CoW Protocol batch auction`)
+    log('='.repeat(55))
 
     if (!args.execute) {
-        console.log('\nQUOTE ONLY - Add --execute to perform the swap')
-        console.log(`\nTo execute: node swap.js --from "${args.from}" --to "${args.to}" --amount ${args.amount} --execute`)
+        if (args.json) {
+            console.log(JSON.stringify({
+                mode: 'quote',
+                from: { symbol: tokenIn.symbol, address: tokenIn.address, amount: args.amount },
+                to: { symbol: tokenOut.symbol, address: tokenOut.address },
+                quote: {
+                    amountOut: ethers.formatUnits(buyAmount, tokenOut.decimals),
+                    amountOutRaw: buyAmount.toString(),
+                    fee: ethers.formatUnits(feeAmount, tokenIn.decimals),
+                    minReceive: ethers.formatUnits(minReceive, tokenOut.decimals),
+                    slippagePct: slippagePct.toFixed(2),
+                    expiresIn: args.timeout,
+                },
+            }, null, 2))
+        } else {
+            log('\nQUOTE ONLY - Add --execute to perform the swap')
+            log(`\nTo execute: node swap.js --from "${args.from}" --to "${args.to}" --amount ${args.amount} --execute`)
+        }
         process.exit(0)
     }
 
@@ -477,7 +566,7 @@ async function main() {
     // EXECUTION
     // ========================================================================
 
-    console.log('\nExecuting CoW Protocol swap...\n')
+    log('\nExecuting CoW Protocol swap...\n')
 
     const agentPkPath = path.join(args.configDir, 'agent.pk')
     if (!fs.existsSync(agentPkPath)) {
@@ -497,7 +586,7 @@ async function main() {
     }
 
     // Step 1: Submit order to CoW API (off-chain, needed to get orderUid for presign)
-    console.log('Step 1: Submitting order to CoW Protocol...')
+    log('Step 1: Submitting order to CoW Protocol...')
     let orderUid, order
     try {
         const result = await submitCowOrder(quoteResponse, safeAddress, args.timeout)
@@ -507,27 +596,25 @@ async function main() {
         console.error(`${error.message}`)
         process.exit(1)
     }
-    console.log(`   Order UID: ${orderUid}`)
-    console.log(`   Explorer:  https://explorer.cow.fi/base/orders/${orderUid}`)
+    log(`   Order UID: ${orderUid}`)
+    log(`   Explorer:  https://explorer.cow.fi/base/orders/${orderUid}`)
 
     // Step 2: Build on-chain operations (wrap + approve + presign) and execute
-    // All operations are bundled into a single MultiSend transaction when multiple
-    // steps are needed, saving gas and ensuring atomicity.
-    console.log('\nStep 2: Executing on-chain operations...')
+    log('\nStep 2: Executing on-chain operations...')
 
     const zodiacHelpersInterface = new ethers.Interface(ZODIAC_HELPERS_ABI)
     const cowPresignInterface = new ethers.Interface(COW_PRESIGN_ABI)
     const multiSendTxs = []
 
-    // 2a: Wrap ETH → WETH if needed (user said ETH, CoW needs WETH)
+    // 2a: Wrap ETH -> WETH if needed (user said ETH, CoW needs WETH)
     if (wrapAmount > 0n) {
-        console.log(`   - Wrap ${formatAmount(wrapAmount, 18, 'ETH')} → WETH`)
+        log(`   - Wrap ${formatAmount(wrapAmount, 18, 'ETH')} -> WETH`)
         const wrapData = zodiacHelpersInterface.encodeFunctionData('wrapETH', [wrapAmount])
         multiSendTxs.push({ operation: 1, to: zodiacHelpersAddress, value: 0n, data: wrapData })
     }
 
     // 2b: Presign the order on-chain (must match submitted order exactly)
-    console.log('   - Presign CoW order')
+    log('   - Presign CoW order')
     const orderStruct = {
         sellToken: order.sellToken,
         buyToken: order.buyToken,
@@ -552,7 +639,7 @@ async function main() {
     // Execute each operation individually via Roles (ZodiacHelpers is the allowed target)
     for (let i = 0; i < multiSendTxs.length; i++) {
         const tx = multiSendTxs[i]
-        console.log(`   Executing operation ${i + 1}/${multiSendTxs.length}...`)
+        log(`   Executing operation ${i + 1}/${multiSendTxs.length}...`)
         const onChainTx = await roles.execTransactionWithRole(
             tx.to,
             tx.value,
@@ -561,20 +648,19 @@ async function main() {
             config.roleKey,
             true
         )
-        console.log(`   Transaction: ${onChainTx.hash}`)
+        log(`   Transaction: ${onChainTx.hash}`)
         const receipt = await onChainTx.wait()
         if (receipt.status !== 1) {
             console.error(`   Operation ${i + 1} failed!`)
             process.exit(1)
         }
     }
-    const lastTxHash = multiSendTxs.length > 0 ? 'see above' : 'none'
 
-    console.log('   All on-chain operations complete!')
+    log('   All on-chain operations complete!')
 
     // Step 3: Poll order status
-    console.log('\nStep 3: Waiting for order to be filled...')
-    console.log(`   Timeout: ${args.timeout}s`)
+    log('\nStep 3: Waiting for order to be filled...')
+    log(`   Timeout: ${args.timeout}s`)
 
     const result = await pollOrderStatus(orderUid, args.timeout * 1000)
 
@@ -584,23 +670,56 @@ async function main() {
             const outContract = new ethers.Contract(tokenOut.address, ERC20_ABI, provider)
             newBalance = await outContract.balanceOf(safeAddress)
 
-            console.log('\nSWAP COMPLETE')
-            console.log(`   Sold: ${formatAmount(sellAmount, tokenIn.decimals, tokenIn.symbol)}`)
-            console.log(`   Received: ~${formatAmount(buyAmount, tokenOut.decimals, tokenOut.symbol)}`)
-            console.log(`   New ${tokenOut.symbol} balance: ${formatAmount(newBalance, tokenOut.decimals, tokenOut.symbol)}`)
-            console.log(`   Explorer: https://explorer.cow.fi/base/orders/${orderUid}`)
+            const amountOutFormatted = ethers.formatUnits(buyAmount, tokenOut.decimals)
+
+            // Log trade to history
+            recordTrade({
+                orderUid,
+                tokenIn,
+                tokenOut,
+                amountIn: args.amount,
+                amountOut: amountOutFormatted,
+            }, args.configDir)
+
+            if (args.json) {
+                console.log(JSON.stringify({
+                    mode: 'execute',
+                    status: 'fulfilled',
+                    orderUid,
+                    explorer: `https://explorer.cow.fi/base/orders/${orderUid}`,
+                    from: { symbol: tokenIn.symbol, address: tokenIn.address, amount: args.amount },
+                    to: { symbol: tokenOut.symbol, address: tokenOut.address },
+                    amountOut: amountOutFormatted,
+                    newBalance: ethers.formatUnits(newBalance, tokenOut.decimals),
+                }, null, 2))
+            } else {
+                log('\nSWAP COMPLETE')
+                log(`   Sold: ${formatAmount(sellAmount, tokenIn.decimals, tokenIn.symbol)}`)
+                log(`   Received: ~${formatAmount(buyAmount, tokenOut.decimals, tokenOut.symbol)}`)
+                log(`   New ${tokenOut.symbol} balance: ${formatAmount(newBalance, tokenOut.decimals, tokenOut.symbol)}`)
+                log(`   Explorer: https://explorer.cow.fi/base/orders/${orderUid}`)
+            }
             break
         }
         case 'expired':
+            if (args.json) {
+                console.log(JSON.stringify({ mode: 'execute', status: 'expired', orderUid }, null, 2))
+            }
             console.error('\nOrder expired without being filled.')
             console.error('Tip: Try again with a higher slippage tolerance.')
             process.exit(1)
             break
         case 'cancelled':
+            if (args.json) {
+                console.log(JSON.stringify({ mode: 'execute', status: 'cancelled', orderUid }, null, 2))
+            }
             console.error('\nOrder was cancelled.')
             process.exit(1)
             break
         case 'timeout':
+            if (args.json) {
+                console.log(JSON.stringify({ mode: 'execute', status: 'timeout', orderUid }, null, 2))
+            }
             console.error(`\nTimed out after ${args.timeout}s. Order may still be filled.`)
             console.error(`Check status: https://explorer.cow.fi/base/orders/${orderUid}`)
             process.exit(1)
