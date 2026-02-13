@@ -17,9 +17,7 @@
  *
  * Usage:
  *   node swap.js --from ETH --to USDC --amount 0.1
- *   node swap.js --from USDC --to ETH --amount 100 --execute
- *
- * ETH is auto-wrapped to WETH when needed (CoW requires ERC20s)
+ *   node swap.js --from USDC 
  */
 
 import { ethers } from 'ethers'
@@ -218,10 +216,12 @@ async function pollOrderStatus(orderUid, timeoutMs) {
 
         await new Promise(resolve => setTimeout(resolve, pollInterval))
     }
-
+    approveMax: false,
     return { status: 'timeout' }
 }
-
+  case '--approve-max':
+      result.approveMax = true
+      break
 // ============================================================================
 // HELPERS
 // ============================================================================
@@ -268,7 +268,8 @@ function parseArgs() {
             case '-a':
                 result.amount = args[++i]
                 break
-            case '--slippage':
+            case '--approve-max':   
+                Approve MaxUint256 (default: exact amount only)
                 result.slippage = parseFloat(args[++i])
                 break
             case '--execute':
@@ -416,13 +417,13 @@ async function main() {
             process.exit(1)
         }
     } else {
-        const tokenContract = new ethers.Contract(tokenIn.address, ERC20_ABI, provider)
-        balance = await tokenContract.balanceOf(safeAddress)
-        console.log(`Safe balance: ${formatAmount(balance, tokenIn.decimals, tokenIn.symbol)}`)
-
-        if (balance < amountIn) {
-            console.error(`\nInsufficient ${tokenIn.symbol} balance in Safe`)
-            process.exit(1)
+        if (allowance < approvalAmount) {
+            console.log(`Approving token for router...`)
+            const approvalInterface = new ethers.Interface(APPROVAL_HELPER_ABI)
+            const approveData = approvalInterface.encodeFunctionData('approveForRouter', [
+                  tokenIn.address,
+                  approvalAmount,
+              ])
         }
     }
 
