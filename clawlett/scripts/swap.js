@@ -350,6 +350,11 @@ async function main() {
     }
 
     const provider = new ethers.JsonRpcProvider(args.rpc)
+     const network = await provider.getNetwork()
+      if (Number(network.chainId) !== 8453) {
+          console.error(`Error: wrong chainId ${network.chainId}. Expected 8453 (Base).`)
+          process.exit(1)
+      }
     const safeAddress = config.safe
 
     console.log('\nResolving tokens...\n')
