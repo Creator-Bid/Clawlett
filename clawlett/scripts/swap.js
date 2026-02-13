@@ -281,6 +281,10 @@ function parseArgs() {
             case '--config-dir':
             case '-c':
                 result.configDir = args[++i]
+                 if (!Number.isFinite(args.slippage) || args.slippage <= 0 || args.slippage > 0.5) {
+                      console.error('Error: --slippage must be > 0 and <= 0.5 (e.g., 0.05 for 5%)')
+                      process.exit(1)
+                  }
                 break
             case '--rpc':
             case '-r':
@@ -348,7 +352,8 @@ async function main() {
         console.error(`Error: ${error.message}`)
         process.exit(1)
     }
-
+    const slippageBps = Math.round(args.slippage * 10_000)
+    const minAmountOut = quote.minAmountOut || (quote.amountOut * BigInt(10_000 - slippageBps) / 10_000n)
     const provider = new ethers.JsonRpcProvider(args.rpc)
     const safeAddress = config.safe
 
