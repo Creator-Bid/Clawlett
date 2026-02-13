@@ -13,26 +13,11 @@ import { ethers } from 'ethers'
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
-
+import { VERIFIED_TOKENS } from './lib/tokens.js'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
 const DEFAULT_RPC_URL = 'https://mainnet.base.org'
-
-const VERIFIED_TOKENS = {
-    'ETH': '0x4200000000000000000000000000000000000006',
-    'USDC': '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
-    'USDT': '0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2',
-    'DAI': '0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb',
-    'AERO': '0x940181a94A35A4569E4529A3CDfB74e38FD98631',
-    'cbBTC': '0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf',
-    'VIRTUAL': '0x0b3e328455c4059EEb9e3f84b5543F74E24e7E1b',
-    'DEGEN': '0x4ed4E862860beD51a9570b96d89aF5E1B0Efefed',
-    'BRETT': '0x532f27101965dd16442E59d40670FaF5eBB142E4',
-    'TOSHI': '0xAC1Bd2486aAf3B5C0fc3Fd868558b082a531B2B4',
-    'WELL': '0xA88594D404727625A9437C3f886C7643872296AE',
-    'BID': '0xa1832f7f4e534ae557f9b5ab76de54b1873e498b',
-}
 
 const ERC20_ABI = [
     'function symbol() view returns (string)',
