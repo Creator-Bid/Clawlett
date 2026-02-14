@@ -140,7 +140,7 @@ async function main() {
     const ethBalance = await provider.getBalance(safeAddress)
     console.log(`ETH:    ${formatAmount(ethBalance, 18, 'ETH')}`)
 
-    if (args.all) {
+    if (args.all || !args.token) {
         // Show all verified tokens
         console.log('')
         for (const [symbol, address] of Object.entries(VERIFIED_TOKENS)) {
