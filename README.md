@@ -80,7 +80,8 @@ node clawlett/scripts/balance.js --token USDC
 # All verified tokens
 node clawlett/scripts/balance.js --all
 ```
-
+# JSON output
+node clawlett/scripts/balance.js --json
 ### Swap Tokens
 
 ```bash

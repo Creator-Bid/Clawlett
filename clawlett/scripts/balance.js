@@ -55,6 +55,7 @@ function parseArgs() {
         all: false,
         configDir: process.env.WALLET_CONFIG_DIR || path.join(__dirname, '..', 'config'),
         rpc: process.env.BASE_RPC_URL || DEFAULT_RPC_URL,
+        json: false,
     }
 
     for (let i = 0; i < args.length; i++) {
@@ -75,6 +76,10 @@ function parseArgs() {
             case '-r':
                 result.rpc = args[++i]
                 break
+            case '--json':
+            case '-j':
+                result.json = true
+                break
             case '--help':
             case '-h':
                 printHelp()
@@ -94,7 +99,7 @@ Options:
   --all, -a        Check all verified token balances
   --config-dir, -c Config directory
   --rpc, -r        RPC URL (default: ${DEFAULT_RPC_URL})
-
+  --json, -j      Output machine-readable JSON
 Examples:
   node balance.js              # ETH balance only
   node balance.js --token USDC # USDC balance
@@ -135,9 +140,14 @@ async function main() {
     const safeAddress = config.safe
 
     console.log(`\nSafe: ${safeAddress}\n`)
+    const out = { safe: safeAddress, eth: null, tokens: [] }
 
     // Always show ETH
     const ethBalance = await provider.getBalance(safeAddress)
+    out.eth = { symbol: 'ETH', balance: ethBalance.toString(), formatted: formatAmount(ethBalance, 18, 'ETH') }
+    if (!args.json) {
+        console.log(`ETH:    ${formatAmount(ethBalance, 18, 'ETH')}`)
+    }
     console.log(`ETH:    ${formatAmount(ethBalance, 18, 'ETH')}`)
 
     if (args.all) {
@@ -147,6 +157,7 @@ async function main() {
             if (symbol === 'ETH') continue
             try {
                 const { balance, decimals } = await getTokenBalance(provider, safeAddress, address)
+                out.tokens.push({ symbol, balance: balance.toString(), formatted: formatAmount(balance, decimals, symbol) })
                 if (balance > 0n) {
                     console.log(`${symbol.padEnd(8)} ${formatAmount(balance, decimals, symbol)}`)
                 }
@@ -171,6 +182,10 @@ async function main() {
 
         try {
             const { symbol: tokenSymbol, balance, decimals } = await getTokenBalance(provider, safeAddress, address)
+            out.tokens.push({ symbol: tokenSymbol, balance: balance.toString(), formatted: formatAmount(balance, decimals, tokenSymbol) })
+            if (!args.json) {
+                console.log(`${symbol.padEnd(8)} ${formatAmount(balance, decimals, symbol)}`)
+            }
             console.log(`${tokenSymbol}:    ${formatAmount(balance, decimals, tokenSymbol)}`)
         } catch (error) {
             console.error(`\nFailed to get token balance: ${error.message}`)

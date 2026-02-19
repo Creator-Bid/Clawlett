@@ -106,7 +106,14 @@ async function buildAppData(slippageBips) {
         },
         version: "1.14.0",
     }
-
+    if (address === ethers.ZeroAddress) {
+              return {
+                  address,
+                  symbol: 'ETH',
+                  decimals: 18,
+                  verified: true,
+              }
+          }
     const fullAppData = JSON.stringify(doc)
     const appDataHash = ethers.keccak256(ethers.toUtf8Bytes(fullAppData))
 
@@ -122,7 +129,14 @@ async function buildAppData(slippageBips) {
 
 async function submitCowOrder(quoteResponse, safeAddress, timeoutSeconds) {
     const q = quoteResponse.quote
-
+    if (address === ethers.ZeroAddress) {
+              return {
+                  address,
+                  symbol: 'ETH',
+                  decimals: 18,
+                  verified: true,
+              }
+          }
     // Default 30 minutes — matches CoW FE. Solvers need time to batch orders.
     const validTo = Math.floor(Date.now() / 1000) + (timeoutSeconds || 1800)
 
@@ -296,6 +310,10 @@ function parseArgs() {
     return result
 }
 
+if (!Number.isFinite(args.slippage) || args.slippage < 0 || args.slippage > 0.5) {
+    console.error('Error: --slippage must be a number between 0 and 0.5')
+    process.exit(1)
+    
 function printHelp() {
     console.log(`
 Usage: node swap.js --from <TOKEN> --to <TOKEN> --amount <AMOUNT> [--execute]
@@ -389,7 +407,9 @@ async function main() {
     console.log(`To:   ${tokenOut.symbol} ${tokenOut.verified ? '(verified)' : '(unverified)'}`)
     console.log(`      ${tokenOut.address}`)
     if (tokenOut.warning) console.log(`\n${tokenOut.warning}\n`)
-
+    
+    const slippageBps = Math.round(args.slippage * 10000)
+    const minAmountOut = quote.minAmountOut || (quote.amountOut * BigInt(10000 - slippageBps) / 10000n)
     const amountIn = ethers.parseUnits(args.amount, tokenIn.decimals)
     console.log(`\nAmount: ${formatAmount(amountIn, tokenIn.decimals, tokenIn.symbol)}`)
 
@@ -459,7 +479,7 @@ async function main() {
     const minReceive = buyAmount - displayBuySlippage
     const slippagePct = Number(displayBuySlippage * 10000n / buyAmount) / 100
     console.log(`  You receive:  ~${formatAmount(buyAmount, tokenOut.decimals, tokenOut.symbol)}`)
-    console.log(`  Min receive:  ${formatAmount(minReceive, tokenOut.decimals, tokenOut.symbol)} (${slippagePct.toFixed(2)}% smart slippage)`)
+    console.log(`  Min receive:  ${formatAmount(minAmountOut, tokenOut.decimals, tokenOut.symbol)} (${(slippageBps / 100).toFixed(2)}% slippage)`)
     console.log(`  Expires in:   ${args.timeout}s`)
     if (wrapAmount > 0n) {
         console.log(`  ETH wrap:     ${formatAmount(wrapAmount, 18, 'ETH')} → WETH (bundled in tx)`)
