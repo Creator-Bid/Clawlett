@@ -39,7 +39,24 @@ const ERC20_ABI = [
     'function decimals() view returns (uint8)',
     'function balanceOf(address) view returns (uint256)',
 ]
-
+async function mapWithConcurrency(items, limit, fn) {
+      const results = new Array(items.length)
+      let index = 0
+  
+      async function worker() {
+          while (index < items.length) {
+              const current = index++
+              results[current] = await fn(items[current], current)
+          }
+      }
+  
+      const workers = []
+      for (let i = 0; i < Math.min(limit, items.length); i++) {
+          workers.push(worker())
+      }
+      await Promise.all(workers)
+      return results
+  }
 function loadConfig(configDir) {
     const configPath = path.join(configDir, 'wallet.json')
     if (!fs.existsSync(configPath)) {
@@ -55,6 +72,7 @@ function parseArgs() {
         all: false,
         configDir: process.env.WALLET_CONFIG_DIR || path.join(__dirname, '..', 'config'),
         rpc: process.env.BASE_RPC_URL || DEFAULT_RPC_URL,
+        json: false,
     }
 
     for (let i = 0; i < args.length; i++) {
@@ -75,6 +93,10 @@ function parseArgs() {
             case '-r':
                 result.rpc = args[++i]
                 break
+            case '--json':
+            case '-j':
+                result.json = true
+                break
             case '--help':
             case '-h':
                 printHelp()
@@ -94,7 +116,7 @@ Options:
   --all, -a        Check all verified token balances
   --config-dir, -c Config directory
   --rpc, -r        RPC URL (default: ${DEFAULT_RPC_URL})
-
+  --json, -j      Output machine-readable JSON
 Examples:
   node balance.js              # ETH balance only
   node balance.js --token USDC # USDC balance
@@ -135,10 +157,25 @@ async function main() {
     const safeAddress = config.safe
 
     console.log(`\nSafe: ${safeAddress}\n`)
+    const out = { safe: safeAddress, eth: null, tokens: [] }
 
     // Always show ETH
-    const ethBalance = await provider.getBalance(safeAddress)
-    console.log(`ETH:    ${formatAmount(ethBalance, 18, 'ETH')}`)
+    const entries = Object.entries(VERIFIED_TOKENS).filter(([symbol]) => symbol !== 'ETH')
+          const balances = await mapWithConcurrency(entries, 4, async ([symbol, address]) => {
+              try {
+                  const { balance, decimals } = await getTokenBalance(provider, safeAddress, address)
+                  return { symbol, balance, decimals }
+              } catch {
+                  return null
+              }
+          })
+  
+          for (const result of balances) {
+              if (!result) continue
+              if (result.balance > 0n) {
+                  console.log(`${result.symbol.padEnd(8)} ${formatAmount(result.balance, result.decimals, result.symbol)}`)
+              }
+          }
 
     if (args.all) {
         // Show all verified tokens
@@ -147,6 +184,7 @@ async function main() {
             if (symbol === 'ETH') continue
             try {
                 const { balance, decimals } = await getTokenBalance(provider, safeAddress, address)
+                out.tokens.push({ symbol, balance: balance.toString(), formatted: formatAmount(balance, decimals, symbol) })
                 if (balance > 0n) {
                     console.log(`${symbol.padEnd(8)} ${formatAmount(balance, decimals, symbol)}`)
                 }
@@ -171,6 +209,10 @@ async function main() {
 
         try {
             const { symbol: tokenSymbol, balance, decimals } = await getTokenBalance(provider, safeAddress, address)
+            out.tokens.push({ symbol: tokenSymbol, balance: balance.toString(), formatted: formatAmount(balance, decimals, tokenSymbol) })
+            if (!args.json) {
+                console.log(`${symbol.padEnd(8)} ${formatAmount(balance, decimals, symbol)}`)
+            }
             console.log(`${tokenSymbol}:    ${formatAmount(balance, decimals, tokenSymbol)}`)
         } catch (error) {
             console.error(`\nFailed to get token balance: ${error.message}`)
