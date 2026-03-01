@@ -2,34 +2,49 @@
 
 Secure token swaps and Trenches trading on **Base Mainnet**, powered by Safe + Zodiac Roles.
 
-Swap engine: **CoW Protocol** (MEV-protected batch auctions).
-Token creation & bonding curve trading: **Trenches** (via AgentKeyFactoryV3).
+Swap engines:
+- **KyberSwap** (DEX aggregator for optimal routes) — default
+- **CoW Protocol** (MEV-protected batch auctions)
+
+Token creation & trading: **Trenches** (via AgentKeyFactoryV3).
 
 > **Network: Base Mainnet (Chain ID: 8453)**
 
 ## Overview
 
 This skill enables autonomous token swaps and Trenches token creation/trading through a Gnosis Safe. The agent operates through Zodiac Roles which restricts operations to:
-- Swapping tokens via CoW Protocol (MEV-protected)
-- Creating tokens on Trenches bonding curves
-- Buying and selling tokens on Trenches bonding curves
-- Approving tokens for CoW Vault Relayer
-- Presigning CoW orders via ZodiacHelpers delegatecall
+- Swapping tokens via KyberSwap Aggregator (default) or CoW Protocol
+- Creating tokens on Trenches
+- Buying and selling Trenches tokens via factory
+- Approving tokens for KyberSwap Router and CoW Vault Relayer
+- Executing swaps via ZodiacHelpers delegatecall
 - Wrapping ETH to WETH and unwrapping WETH to ETH via ZodiacHelpers
 - Sending swapped tokens only back to the Safe (no draining)
+
+## Execution Policy
+
+**CRITICAL: The agent MUST NEVER execute an on-chain transaction unless the user explicitly asks for it.** The default behavior for any swap, token creation, or trade request is **quote/preview only**. The agent should show the details and wait for the user to explicitly confirm execution (e.g., "execute", "do it", "go ahead", "yes, swap").
+
+- "Swap 0.1 ETH for USDC" → get a quote and display it, do NOT execute
+- "Swap 0.1 ETH for USDC and execute" → get a quote, display it, then execute
+- Showing a quote and asking "should I execute?" is fine, but the agent must wait for an affirmative response before executing
+
+This applies to all on-chain operations: swaps, token creation, buys, sells, wrapping/unwrapping.
 
 ## Capabilities
 
 | Action | Autonomous | Notes |
 |--------|------------|-------|
 | Check balances | ✅ | ETH and any ERC20 on Base Mainnet |
-| Get swap quote | ✅ | Via CoW Protocol |
-| Swap tokens | ✅ | Any pair with liquidity |
-| Wrap/Unwrap ETH | ✅ | ETH ↔ WETH via ZodiacHelpers |
-| Approve tokens | ✅ | Only for CoW Vault Relayer |
-| Create token (Trenches) | ✅ | Via AgentKeyFactoryV3 bonding curve |
-| Buy tokens (Trenches) | ✅ | Buy with ETH on bonding curve |
-| Sell tokens (Trenches) | ✅ | Sell for ETH on bonding curve |
+| Get swap quote (CoW) | ✅ | Via CoW Protocol (MEV-protected) |
+| Get swap quote (Kyber) | ✅ | Via KyberSwap Aggregator (best routes) |
+| Swap tokens (CoW) | ⚠️ | Requires explicit user confirmation |
+| Swap tokens (Kyber) | ⚠️ | Requires explicit user confirmation |
+| Wrap/Unwrap ETH | ⚠️ | Requires explicit user confirmation |
+| Approve tokens | ⚠️ | Only for CoW Vault Relayer and KyberSwap Router; requires explicit user confirmation |
+| Create token (Trenches) | ⚠️ | Requires explicit user confirmation |
+| Buy tokens (Trenches) | ⚠️ | Requires explicit user confirmation |
+| Sell tokens (Trenches) | ⚠️ | Requires explicit user confirmation |
 | Token info | ✅ | Fetch token details from Trenches API |
 | Token discovery | ✅ | Trending, new, top volume, gainers, losers |
 | Transfer funds | ❌ | Blocked by Roles |
@@ -108,7 +123,25 @@ Swap 100 USDC for ETH
 Exchange 50 DAI to AERO
 ```
 
-CoW Protocol swaps are MEV-protected. ETH is automatically wrapped to WETH when needed (CoW requires ERC20s). Wrapping is bundled into the swap transaction.
+Two swap engines are available:
+
+**KyberSwap Aggregator** (default):
+- Finds optimal routes across multiple DEXs
+- Native ETH supported directly (no wrapping needed)
+- Best for finding the best price across fragmented liquidity
+- 0.1% partner fee
+
+**CoW Protocol**:
+- MEV-protected batch auctions
+- ETH is automatically wrapped to WETH (CoW requires ERC20s)
+- Best for larger swaps where MEV protection matters
+- 0.5% partner fee
+
+To use CoW Protocol explicitly:
+```
+Swap 0.1 ETH for USDC using CoW
+Use cow to swap 100 USDC for ETH
+```
 
 ### Wrap/Unwrap ETH
 ```
@@ -120,7 +153,7 @@ Wrapping and unwrapping is done via ZodiacHelpers delegatecall. When swapping fr
 
 ### Trenches Trading
 
-Trenches enables token creation and bonding curve trading on Base. Tokens are created via the AgentKeyFactoryV3 contract and traded on Uniswap V3-style bonding curves.
+Trenches enables token creation and trading on Base. Tokens are created and traded via the AgentKeyFactoryV3 contract.
 
 All on-chain operations go through ZodiacHelpers wrapper functions (`createViaFactory`, `tradeViaFactory`) which validate the factory address and forward calls with explicit `ethValue` (since `msg.value` doesn't work in delegatecall).
 
@@ -171,34 +204,35 @@ The agent should present the user with a summary of all parameters (including de
 - Both the client and backend enforce this — the backend will refuse to issue a swap signature for protected tokens
 - Wait for the protection window to expire before buying
 
-The agent will:
+Token creation flow:
 1. Upload token image via `/api/skill/image` (returns `imageUrl`)
 2. Get creation signature from `/api/skill/token/create` (includes `imageUrl`)
-3. **Display token details for confirmation**
-4. Execute via Safe + Roles (ZodiacHelpers delegatecall)
-5. **After creation, share the token page URL:** `https://trenches.bid/tokens/[address]`
+3. **Display token details — do NOT execute yet**
+4. **STOP and wait for the user to explicitly confirm** — do not proceed without confirmation
+5. Only after user confirms: execute via Safe + Roles (ZodiacHelpers delegatecall)
+6. **After creation, share the token page URL:** `https://trenches.bid/tokens/[address]`
 
-The agent will:
+Swap flow:
 1. Resolve token symbols (with scam protection)
-2. Get quote from CoW Protocol
-3. **Display swap details for confirmation:**
+2. Get quote from KyberSwap (default) or CoW Protocol
+3. **Display swap details (quote only — do NOT execute yet):**
    - Token symbols (e.g., ETH → USDC)
    - Token addresses (verified Base Mainnet contracts)
    - Input amount (what you're selling)
    - Output amount (estimated amount you'll receive)
    - Fee breakdown
-   - ETH wrap amount (if applicable)
-4. Ask for explicit user confirmation
-5. Execute via Safe + Roles
+4. **STOP and wait for the user to explicitly ask to execute** — do not proceed without confirmation
+5. Only after user confirms: execute via Safe + Roles
 
 ## Scripts
 
 | Script | Description |
 |--------|-------------|
 | `initialize.js` | Deploy Safe + Roles, register CNS name |
-| `swap.js` | Swap tokens via CoW Protocol (MEV-protected) |
+| `swap.js` | Swap tokens via KyberSwap Aggregator (default, optimal routes) |
+| `cow.js` | Swap tokens via CoW Protocol (MEV-protected) |
 | `balance.js` | Check ETH and token balances |
-| `trenches.js` | Create tokens and trade on Trenches bonding curves |
+| `trenches.js` | Create and trade Trenches tokens via factory |
 
 ### Examples
 
@@ -211,13 +245,18 @@ node scripts/initialize.js --owner 0x123... --name MYAGENT
 node scripts/balance.js
 node scripts/balance.js --token USDC
 
-# Swap tokens (CoW Protocol, MEV-protected)
+# Swap tokens (KyberSwap Aggregator, default - optimal routes)
 node scripts/swap.js --from ETH --to USDC --amount 0.1
-node scripts/swap.js --from USDC --to WETH --amount 100 --execute
-node scripts/swap.js --from USDC --to DAI --amount 50 --execute --timeout 600
+node scripts/swap.js --from USDC --to ETH --amount 100 --execute
+node scripts/swap.js --from DAI --to AERO --amount 50 --execute --slippage 1
+
+# Swap tokens (CoW Protocol, MEV-protected)
+node scripts/cow.js --from ETH --to USDC --amount 0.1
+node scripts/cow.js --from USDC --to WETH --amount 100 --execute
+node scripts/cow.js --from USDC --to DAI --amount 50 --execute --timeout 600
 
 # With custom slippage (0-0.5 range, e.g., 0.05 = 5%)
-node scripts/swap.js --from ETH --to USDC --amount 0.1 --slippage 0.03 --execute
+node scripts/cow.js --from ETH --to USDC --amount 0.1 --slippage 0.03 --execute
 
 # Trenches: Create a token (BID base token by default, anti-bot ON)
 node scripts/trenches.js create --name "My Token" --symbol MTK --description "A cool token"
@@ -272,8 +311,9 @@ Scripts read from `config/wallet.json` (configured for Base Mainnet):
 | Safe Singleton | `0x3E5c63644E683549055b9Be8653de26E0B4CD36E` | Safe L2 impl |
 | CoW Settlement | `0x9008D19f58AAbD9eD0D60971565AA8510560ab41` | CoW Protocol settlement |
 | CoW Vault Relayer | `0xC92E8bdf79f0507f65a392b0ab4667716BFE0110` | CoW token allowance target |
-| ZodiacHelpers | `0xb34a6210013977FC7D6082287e03915a66249799` | Approvals, CoW presign, WETH wrap/unwrap, Trenches factory wrappers via delegatecall |
-| AgentKeyFactoryV3 | `0x2EA0010c18fa7239CAD047eb2596F8d8B7Cf2988` | Trenches token creation and bonding curve trading |
+| KyberSwap Router | `0x6131B5fae19EA4f9D964eAc0408E4408b66337b5` | KyberSwap Meta Aggregation Router V2 |
+| ZodiacHelpers | `0x49E596467D5e3C876Eece999d88a2135596bde18` | Approvals, CoW presign, KyberSwap, WETH wrap/unwrap, Trenches factory wrappers via delegatecall |
+| AgentKeyFactoryV3 | `0x2EA0010c18fa7239CAD047eb2596F8d8B7Cf2988` | Trenches token creation and trading |
 | Safe Factory | `0xa6B71E26C5e0845f74c812102Ca7114b6a896AB2` | Safe deployer |
 | Roles Singleton | `0x9646fDAD06d3e24444381f44362a3B0eB343D337` | Zodiac Roles |
 | Module Factory | `0x000000000000aDdB49795b0f9bA5BC298cDda236` | Module deployer |
@@ -299,7 +339,7 @@ Some updates are code-only (just checkout the new tag). Others require on-chain 
 2. **Zodiac Roles restricts operations**:
    - Can only interact with ZodiacHelpers
    - ZodiacHelpers scoped with `allowTarget` (Send + DelegateCall)
-   - Can only approve tokens for CoW Vault Relayer
+   - Can only approve tokens for CoW Vault Relayer and KyberSwap Router
 3. **No transfer/withdraw** - Agent cannot move funds out
 4. **Scam protection** - Common tokens resolve to verified addresses only
 5. **MEV protection** - CoW Protocol batches orders, preventing sandwich attacks and other MEV extraction

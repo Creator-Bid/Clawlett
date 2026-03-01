@@ -1,11 +1,13 @@
 {
   "name": "clawlett-scripts",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "type": "module",
   "scripts": {
     "initialize": "node initialize.js",
     "swap": "node swap.js",
-    "balance": "node balance.js"
+    "cow": "node cow.js",
+    "balance": "node balance.js",
+    "trenches": "node trenches.js"
   },
   "dependencies": {
     "ethers": "^6.16.0"

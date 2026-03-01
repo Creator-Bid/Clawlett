@@ -84,7 +84,7 @@ This is idempotent — it detects the existing Safe/Roles and refreshes the conf
 
 ```bash
 # Test CoW quote (no execution)
-node scripts/swap.js --from USDC --to WETH --amount 10
+node scripts/cow.js --from USDC --to WETH --amount 10
 
 # Test Aerodrome still works (no execution)
 node scripts/swap-aerodrome.js --from ETH --to USDC --amount 0.1
@@ -93,3 +93,97 @@ node scripts/swap-aerodrome.js --from ETH --to USDC --amount 0.1
 ### New deployments
 
 No migration needed. Run `initialize.js` which uses the new ZodiacHelpers address automatically.
+
+---
+
+## v0.2.0 → v0.3.0
+
+**Summary:** KyberSwap Aggregator added as **default** swap mechanism. CoW Protocol remains available.
+
+### What changed
+
+| Change | Type |
+|--------|------|
+| `swap.js` renamed to `cow.js` | Code |
+| New `swap.js` — KyberSwap aggregator (now default) | Code |
+| ZodiacHelpers contract updated (adds `kyberSwap` function) | Code + On-chain |
+| `SKILL.md` — documents KyberSwap as default | Code |
+| `initialize.js` — adds KyberSwapRouter address | Code |
+
+### ZodiacHelpers address change
+
+| | Address |
+|---|---------|
+| Old | `0xb34a6210013977FC7D6082287e03915a66249799` |
+| New | `0x49E596467D5e3C876Eece999d88a2135596bde18` |
+
+The new contract adds `kyberSwap()` for executing swaps via KyberSwap Meta Aggregation Router V2 while retaining all existing functions (`cowPreSign`, `wrapETH`, `unwrapWETH`, `createViaFactory`, `tradeViaFactory`).
+
+### New features
+
+**KyberSwap Aggregator:**
+- Finds optimal routes across multiple DEXs on Base
+- Native ETH supported directly (no wrapping needed)
+- 0.1% partner fee (10 bps)
+- Slippage protection via minAmountOut validation
+
+### Migration steps
+
+#### Step 1: Update code
+
+```bash
+cd <clawlett-repo>
+git fetch --tags origin
+git checkout v0.3.0
+```
+
+#### Step 2: Update on-chain Roles permissions (required for existing Safes)
+
+The Safe **owner** must submit a transaction to allow the new ZodiacHelpers address in the Roles modifier. This requires the owner's wallet — the agent cannot do this autonomously.
+
+Use the [Safe Transaction Builder](https://app.safe.global) to batch these calls to the **Roles Modifier** (`roles` address from `config/wallet.json`):
+
+```
+1. scopeTarget(roleKey, 0x49E596467D5e3C876Eece999d88a2135596bde18)
+2. allowTarget(roleKey, 0x49E596467D5e3C876Eece999d88a2135596bde18, 3)
+3. revokeTarget(roleKey, 0xb34a6210013977FC7D6082287e03915a66249799)
+```
+
+Where:
+- `roleKey` = the `WalletSwapper` role key from `config/wallet.json`
+- `3` = ExecutionOptions.Both (Send + DelegateCall)
+- Step 3 (revokeTarget) is optional but recommended to clean up the old address
+
+#### Step 3: Refresh config
+
+Re-run initialize to update `config/wallet.json` with the new contracts:
+
+```bash
+node scripts/initialize.js --owner <OWNER_ADDRESS>
+```
+
+This is idempotent — it detects the existing Safe/Roles and refreshes the config file.
+
+#### Step 4: Verify
+
+```bash
+# Test KyberSwap quote (now default swap.js)
+node scripts/swap.js --from ETH --to USDC --amount 0.1
+
+# Test CoW still works (now cow.js)
+node scripts/cow.js --from USDC --to WETH --amount 10
+```
+
+### New deployments
+
+No migration needed. Run `initialize.js` which uses the new ZodiacHelpers address automatically.
+
+### When to use KyberSwap vs CoW
+
+| Use Case | Recommended |
+|----------|-------------|
+| Large swaps (MEV concern) | CoW Protocol |
+| Best price discovery | KyberSwap |
+| Native ETH swaps | KyberSwap |
+| Partial fills acceptable | CoW Protocol |
+| Immediate execution needed | KyberSwap |

@@ -10,10 +10,10 @@ An [OpenClaw](https://openclaw.ai) skill for autonomous token swaps and Trenches
 
 This skill enables AI agents to perform secure, permissioned token swaps and Trenches token creation/trading through a Gnosis Safe. The agent operates through Zodiac Roles module which restricts operations to:
 
-- Swapping tokens via CoW Protocol (MEV-protected)
-- Creating tokens on Trenches bonding curves
-- Buying and selling tokens on Trenches bonding curves
-- Approving tokens only for CoW Vault Relayer and AgentKeyFactoryV3
+- Swapping tokens via KyberSwap Aggregator (default) or CoW Protocol (MEV-protected)
+- Creating tokens on Trenches
+- Buying and selling Trenches tokens via factory
+- Approving tokens only for KyberSwap Router, CoW Vault Relayer, and AgentKeyFactoryV3
 - All swapped tokens return to the Safe (no external transfers)
 
 The human owner retains full control of the Safe while the agent can only execute swaps and trades.
@@ -34,9 +34,9 @@ The human owner retains full control of the Safe while the agent can only execut
 │                   Zodiac Roles                          │
 │                                                         │
 │  Agent can ONLY:                                        │
-│  • Call Aerodrome Router (swap functions)               │
-│  • Call ApprovalHelper (approve for router)             │
-│  • Send ETH (for ETH swaps)                             │
+│  • Call ZodiacHelpers (swaps, approvals, wrapping)      │
+│  • Approve tokens for KyberSwap Router & CoW Relayer    │
+│  • Execute swaps via KyberSwap or CoW Protocol          │
 │                                                         │
 │  Agent CANNOT:                                          │
 │  • Transfer tokens out of Safe                          │
@@ -84,11 +84,13 @@ node clawlett/scripts/balance.js --all
 ### Swap Tokens
 
 ```bash
-# Get quote
+# KyberSwap (default — optimal routes across DEXs)
 node clawlett/scripts/swap.js --from ETH --to USDC --amount 0.1
-
-# Execute swap
 node clawlett/scripts/swap.js --from ETH --to USDC --amount 0.1 --execute
+
+# CoW Protocol (MEV-protected)
+node clawlett/scripts/cow.js --from USDC --to WETH --amount 100
+node clawlett/scripts/cow.js --from USDC --to WETH --amount 100 --execute
 
 # Swap by address (for tokens not in verified list)
 node clawlett/scripts/swap.js --from USDC --to 0xa1832f7f4e534ae557f9b5ab76de54b1873e498b --amount 100 --execute
@@ -142,12 +144,19 @@ Protected tokens can only resolve to verified addresses (scam protection):
 
 | Token | Address |
 |-------|---------|
-| ETH/WETH | `0x4200000000000000000000000000000000000006` |
+| ETH | Native ETH (`0x0000000000000000000000000000000000000000`) |
+| WETH | `0x4200000000000000000000000000000000000006` |
 | USDC | `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913` |
 | USDT | `0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2` |
 | DAI | `0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb` |
+| USDS | `0x820C137fa70C8691f0e44Dc420a5e53c168921Dc` |
 | AERO | `0x940181a94A35A4569E4529A3CDfB74e38FD98631` |
 | cbBTC | `0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf` |
+| VIRTUAL | `0x0b3e328455c4059EEb9e3f84b5543F74E24e7E1b` |
+| DEGEN | `0x4ed4E862860beD51a9570b96d89aF5E1B0Efefed` |
+| BRETT | `0x532f27101965dd16442E59d40670FaF5eBB142E4` |
+| TOSHI | `0xAC1Bd2486aAf3B5C0fc3Fd868558b082a531B2B4` |
+| WELL | `0xA88594D404727625A9437C3f886C7643872296AE` |
 | BID | `0xa1832f7f4e534ae557f9b5ab76de54b1873e498b` |
 
 ## Configuration
@@ -176,25 +185,28 @@ Config is stored in `config/wallet.json` after initialization:
 
 ## Contracts
 
-| Contract | Address |
-|----------|---------|
-| Aerodrome Universal Router | `0x6Cb442acF35158D5eDa88fe602221b67B400Be3e` |
-| ApprovalHelper | `0x55881791383A2ab8Fb6F98267419e83e074fd076` |
-| Safe Singleton | `0x3E5c63644E683549055b9Be8653de26E0B4CD36E` |
-| Safe Factory | `0xa6B71E26C5e0845f74c812102Ca7114b6a896AB2` |
-| Roles Singleton | `0x9646fDAD06d3e24444381f44362a3B0eB343D337` |
-| Module Factory | `0x000000000000aDdB49795b0f9bA5BC298cDda236` |
-| AgentKeyFactoryV3 | `0x2EA0010c18fa7239CAD047eb2596F8d8B7Cf2988` |
+| Contract | Address | Description |
+|----------|---------|-------------|
+| Safe Singleton | `0x3E5c63644E683549055b9Be8653de26E0B4CD36E` | Safe L2 impl |
+| CoW Settlement | `0x9008D19f58AAbD9eD0D60971565AA8510560ab41` | CoW Protocol settlement |
+| CoW Vault Relayer | `0xC92E8bdf79f0507f65a392b0ab4667716BFE0110` | CoW token allowance target |
+| KyberSwap Router | `0x6131B5fae19EA4f9D964eAc0408E4408b66337b5` | KyberSwap Meta Aggregation Router V2 |
+| ZodiacHelpers | `0x49E596467D5e3C876Eece999d88a2135596bde18` | Approvals, CoW presign, KyberSwap, WETH wrap/unwrap, Trenches factory wrappers via delegatecall |
+| AgentKeyFactoryV3 | `0x2EA0010c18fa7239CAD047eb2596F8d8B7Cf2988` | Trenches token creation and trading |
+| Safe Factory | `0xa6B71E26C5e0845f74c812102Ca7114b6a896AB2` | Safe deployer |
+| Roles Singleton | `0x9646fDAD06d3e24444381f44362a3B0eB343D337` | Zodiac Roles |
+| Module Factory | `0x000000000000aDdB49795b0f9bA5BC298cDda236` | Module deployer |
+| CNS | `0x299319e0BC8d67e11AD8b17D4d5002033874De3a` | Clawlett Name Service (unique agent names) |
 
 ## OpenClaw Integration
 
 This skill is designed to work with [OpenClaw](https://openclaw.ai) agents. The agent can:
 
 - Check wallet balances on request
-- Get swap quotes and explain trade details
+- Get swap quotes via KyberSwap (default) or CoW Protocol
 - Execute swaps after user confirmation
-- Create tokens on Trenches bonding curves
-- Buy and sell tokens on Trenches bonding curves
+- Create tokens on Trenches
+- Buy and sell Trenches tokens via factory
 - Discover trending, new, and top-performing tokens
 - Protect users from scam tokens
 

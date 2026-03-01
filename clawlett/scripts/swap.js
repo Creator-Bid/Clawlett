@@ -1,25 +1,23 @@
 #!/usr/bin/env node
 
 /**
- * Swap tokens via CoW Protocol (via Safe + Zodiac Roles)
+ * Swap tokens via KyberSwap Aggregator (via Safe + Zodiac Roles)
  *
- * Uses CoW Protocol's presign flow for MEV-protected swaps.
- * CoW batches orders and finds optimal execution paths, protecting
- * against sandwich attacks and other MEV extraction.
+ * Uses KyberSwap's aggregator API to find optimal swap routes across
+ * multiple DEXs on Base. Supports all ERC20 tokens with liquidity.
  *
  * Features:
  * - Resolves token symbols to addresses
  * - Safeguards for common tokens (ETH, USDC, USDT, etc.)
- * - Auto-substitutes ETH with WETH (CoW requires ERC20s)
- * - Gets quote before execution
- * - Presigns orders via Zodiac Roles delegatecall
- * - Polls order status until filled
+ * - Gets optimal routes across multiple DEXs
+ * - 0.5% partner fee (same as CoW Protocol)
+ * - Executes swaps via Zodiac Roles delegatecall
  *
  * Usage:
- *   node swap.js --from ETH --to USDC --amount 0.1
- *   node swap.js --from USDC --to ETH --amount 100 --execute
+ *   node kyber.js --from ETH --to USDC --amount 0.1
+ *   node kyber.js --from USDC --to ETH --amount 100 --execute
  *
- * ETH is auto-wrapped to WETH when needed (CoW requires ERC20s)
+ * ETH is handled natively by KyberSwap (no wrapping needed).
  */
 
 import { ethers } from 'ethers'
@@ -36,190 +34,96 @@ const DEFAULT_RPC_URL = 'https://mainnet.base.org'
 // Contracts
 const WETH_ADDRESS = '0x4200000000000000000000000000000000000006'
 const NATIVE_ETH = '0x0000000000000000000000000000000000000000'
+const KYBER_NATIVE_TOKEN = '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE'
 
-// CoW Protocol constants
-const COW_API_BASE = 'https://api.cow.fi/base'
-const COW_SETTLEMENT = '0x9008D19f58AAbD9eD0D60971565AA8510560ab41'
-const COW_VAULT_RELAYER = '0xC92E8bdf79f0507f65a392b0ab4667716BFE0110'
+// KyberSwap API constants
+const KYBER_API_BASE = 'https://aggregator-api.kyberswap.com'
+const KYBER_CHAIN = 'base'
+const KYBER_CLIENT_ID = 'clawlett'
 
-// bytes32 keccak hashes for order struct fields
-const KIND_SELL = '0xf3b277728b3fee749481eb3e0b3b48980dbbab78658fc419025cb16eee346775'
-const KIND_BUY = '0x6ed88e868af0a1983e3886d5f3e95a2fafbd6c3450bc229e27342283dc429ccc'
-const BALANCE_ERC20 = '0x5a28e9363bb942b639270062aa6bb295f434bcdfc42c97267bf003f272060dc9'
+// Partner fee (0.5% = 50 bps)
+const FEE_BPS = 50
+const FEE_RECEIVER = '0xCB52B32D872e496fccb84CeD21719EC9C560dFd4'
 
 // ABIs
 const ROLES_ABI = [
     'function execTransactionWithRole(address to, uint256 value, bytes data, uint8 operation, bytes32 roleKey, bool shouldRevert) returns (bool)',
 ]
 
-const COW_PRESIGN_ABI = [
-    'function cowPreSign(tuple(address sellToken, address buyToken, address receiver, uint256 sellAmount, uint256 buyAmount, uint32 validTo, bytes32 appData, uint256 feeAmount, bytes32 kind, bool partiallyFillable, bytes32 sellTokenBalance, bytes32 buyTokenBalance) order, bytes orderUid) external',
-]
-
 const ZODIAC_HELPERS_ABI = [
     'function wrapETH(uint256 amount) external',
     'function unwrapWETH(uint256 amount) external',
+    'function kyberSwap(address tokenIn, address tokenOut, uint256 amountIn, uint256 minAmountOut, bytes swapData, uint256 ethValue) external',
 ]
 
 // ============================================================================
-// COW PROTOCOL API
+// KYBERSWAP API
 // ============================================================================
 
-async function getCowQuote(sellToken, buyToken, sellAmount, safeAddress) {
-    const response = await fetch(`${COW_API_BASE}/api/v1/quote`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            sellToken: sellToken.address,
-            buyToken: buyToken.address,
-            from: safeAddress,
-            receiver: safeAddress,
-            sellAmountBeforeFee: sellAmount.toString(),
-            kind: 'sell',
-            signingScheme: 'presign',
-            sellTokenBalance: 'erc20',
-            buyTokenBalance: 'erc20',
-        }),
+async function getKyberRoute(tokenIn, tokenOut, amountIn, safeAddress) {
+    const params = new URLSearchParams({
+        tokenIn: tokenIn.kyberAddress,
+        tokenOut: tokenOut.kyberAddress,
+        amountIn: amountIn.toString(),
+        // Partner fee parameters (0.1%)
+        feeAmount: String(FEE_BPS),
+        chargeFeeBy: 'currency_in',
+        isInBps: 'true',
+        feeReceiver: FEE_RECEIVER,
     })
 
-    const data = await response.json()
+    const url = `${KYBER_API_BASE}/${KYBER_CHAIN}/api/v1/routes?${params}`
 
-    if (!response.ok) {
-        const errorMsg = data.description || data.errorType || JSON.stringify(data)
-        throw new Error(`CoW quote failed: ${errorMsg}`)
-    }
-
-    return data
-}
-
-async function buildAppData(slippageBips) {
-    const doc = {
-        appCode: "Clawlett",
-        environment: "production",
-        metadata: {
-            orderClass: { orderClass: "market" },
-            quote: { slippageBips, smartSlippage: true },
-            partnerFee: {
-                bps: 50,
-                recipient: "0xCB52B32D872e496fccb84CeD21719EC9C560dFd4",
-            },
+    const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+            'X-Client-Id': KYBER_CLIENT_ID,
+            'Accept': 'application/json',
         },
-        version: "1.14.0",
-    }
-
-    const fullAppData = JSON.stringify(doc)
-    const appDataHash = ethers.keccak256(ethers.toUtf8Bytes(fullAppData))
-
-    // Register with CoW so solvers can resolve the hash
-    await fetch(`${COW_API_BASE}/api/v1/app_data/${appDataHash}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fullAppData }),
-    }).catch(() => {}) // non-critical
-
-    return appDataHash
-}
-
-async function submitCowOrder(quoteResponse, safeAddress, timeoutSeconds) {
-    const q = quoteResponse.quote
-
-    // Default 30 minutes — matches CoW FE. Solvers need time to batch orders.
-    const validTo = Math.floor(Date.now() / 1000) + (timeoutSeconds || 1800)
-
-    // Smart slippage (based on CoW FE, more aggressive for small orders):
-    //   1. Fee-based:   150% of feeAmount (dominates small orders → wider tolerance)
-    //   2. Volume-based: 0.5% of sellAmount (dominates large orders → ~0.5%)
-    const feeSlippage = BigInt(q.feeAmount) * 3n / 2n
-    const volumeSlippage = BigInt(q.sellAmount) * 5n / 1000n
-    const totalSlippage = feeSlippage + volumeSlippage
-    // Convert sell-token slippage to buy-token: slippage * buyAmount / sellAmount
-    const buySlippage = BigInt(q.sellAmount) > 0n
-        ? totalSlippage * BigInt(q.buyAmount) / BigInt(q.sellAmount)
-        : BigInt(q.buyAmount) * 5n / 1000n
-    const discountedBuyAmount = (BigInt(q.buyAmount) - buySlippage).toString()
-
-    // Build appData with slippage metadata (matches CoW FE)
-    const slippageBips = Number(buySlippage * 10000n / BigInt(q.buyAmount))
-    const appData = await buildAppData(slippageBips)
-
-    const order = {
-        sellToken: q.sellToken,
-        buyToken: q.buyToken,
-        receiver: q.receiver || safeAddress,
-        sellAmount: q.sellAmount,
-        buyAmount: discountedBuyAmount,
-        validTo,
-        appData,
-        feeAmount: "0",
-        kind: q.kind,
-        partiallyFillable: q.partiallyFillable || false,
-        sellTokenBalance: q.sellTokenBalance || 'erc20',
-        buyTokenBalance: q.buyTokenBalance || 'erc20',
-        signingScheme: 'presign',
-        signature: safeAddress,
-        from: safeAddress,
-    }
-
-    const response = await fetch(`${COW_API_BASE}/api/v1/orders`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(order),
     })
 
     const data = await response.json()
 
-    if (!response.ok) {
-        const errorMsg = data.description || data.errorType || JSON.stringify(data)
-        throw new Error(`CoW order submission failed: ${errorMsg}`)
+    if (!response.ok || data.code !== 0) {
+        const errorMsg = data.message || data.description || JSON.stringify(data)
+        throw new Error(`KyberSwap route failed: ${errorMsg}`)
     }
 
-    // data is the orderUid string
-    return { orderUid: data, order }
+    if (!data.data || !data.data.routeSummary) {
+        throw new Error('KyberSwap: No route found for this pair')
+    }
+
+    return data.data
 }
 
-function kindToBytes32(kind) {
-    switch (kind) {
-        case 'sell': return KIND_SELL
-        case 'buy': return KIND_BUY
-        default: throw new Error(`Unknown order kind: ${kind}`)
-    }
-}
+async function buildKyberSwap(routeData, safeAddress, slippageTolerance) {
+    const url = `${KYBER_API_BASE}/${KYBER_CHAIN}/api/v1/route/build`
 
-function balanceToBytes32(balance) {
-    switch (balance) {
-        case 'erc20': return BALANCE_ERC20
-        default: throw new Error(`Unknown balance type: ${balance}`)
-    }
-}
-
-async function pollOrderStatus(orderUid, timeoutMs) {
-    const startTime = Date.now()
-    const pollInterval = 5000
-
-    while (Date.now() - startTime < timeoutMs) {
-        const response = await fetch(`${COW_API_BASE}/api/v1/orders/${orderUid}`)
-
-        if (response.ok) {
-            const order = await response.json()
-            const status = order.status
-
-            if (status === 'fulfilled') {
-                return { status: 'fulfilled', order }
-            } else if (status === 'expired') {
-                return { status: 'expired', order }
-            } else if (status === 'cancelled') {
-                return { status: 'cancelled', order }
-            }
-
-            // presignaturePending or open - keep polling
-            const elapsed = Math.round((Date.now() - startTime) / 1000)
-            console.log(`   Status: ${status} (${elapsed}s elapsed)`)
-        }
-
-        await new Promise(resolve => setTimeout(resolve, pollInterval))
+    const requestBody = {
+        routeSummary: routeData.routeSummary,
+        sender: safeAddress,
+        recipient: safeAddress,
+        slippageTolerance: slippageTolerance, // in bps, e.g., 50 = 0.5%
     }
 
-    return { status: 'timeout' }
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+            'X-Client-Id': KYBER_CLIENT_ID,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+    })
+
+    const data = await response.json()
+
+    if (!response.ok || data.code !== 0) {
+        const errorMsg = data.message || data.description || JSON.stringify(data)
+        throw new Error(`KyberSwap build failed: ${errorMsg}`)
+    }
+
+    return data.data
 }
 
 // ============================================================================
@@ -249,9 +153,8 @@ function parseArgs() {
         amount: null,
         configDir: process.env.WALLET_CONFIG_DIR || path.join(__dirname, '..', 'config'),
         rpc: process.env.BASE_RPC_URL || DEFAULT_RPC_URL,
-        slippage: 0.05,
+        slippage: 50, // 0.5% default in bps
         execute: false,
-        timeout: 1800, // 30 minutes default (matches CoW FE)
     }
 
     for (let i = 0; i < args.length; i++) {
@@ -269,14 +172,13 @@ function parseArgs() {
                 result.amount = args[++i]
                 break
             case '--slippage':
-                result.slippage = parseFloat(args[++i])
+                // Accept slippage as percentage (e.g., 0.5 for 0.5%) or bps (e.g., 50)
+                const slipVal = parseFloat(args[++i])
+                result.slippage = slipVal < 1 ? Math.round(slipVal * 100) : Math.round(slipVal)
                 break
             case '--execute':
             case '-x':
                 result.execute = true
-                break
-            case '--timeout':
-                result.timeout = parseInt(args[++i])
                 break
             case '--config-dir':
             case '-c':
@@ -298,23 +200,23 @@ function parseArgs() {
 
 function printHelp() {
     console.log(`
-Usage: node swap.js --from <TOKEN> --to <TOKEN> --amount <AMOUNT> [--execute]
+Usage: node kyber.js --from <TOKEN> --to <TOKEN> --amount <AMOUNT> [--execute]
 
-Swap tokens via CoW Protocol (MEV-protected).
+Swap tokens via KyberSwap Aggregator (optimal routes across DEXs).
 
 Arguments:
   --from, -f       Token to swap from (symbol or address)
   --to, -t         Token to swap to (symbol or address)
   --amount, -a     Amount to swap
-  --slippage       Slippage 0-0.5 (default: 0.05 = 5%)
+  --slippage       Slippage in % or bps (default: 0.5% = 50 bps)
   --execute, -x    Execute swap (default: quote only)
-  --timeout        Order timeout in seconds (default: 1800 = 30min)
   --config-dir, -c Config directory
   --rpc, -r        RPC URL (default: ${DEFAULT_RPC_URL})
 
 Notes:
-  - CoW Protocol only works with ERC20 tokens. ETH is auto-wrapped to WETH.
-  - Orders are MEV-protected (no sandwich attacks).
+  - KyberSwap aggregates liquidity from multiple DEXs for optimal rates.
+  - Native ETH is supported directly (no wrapping needed).
+  - A 0.5% partner fee is applied (same as CoW Protocol).
 
 Verified Tokens:
   ETH, WETH, USDC, USDT, DAI, USDS, AERO, cbBTC, VIRTUAL, DEGEN, BRETT, TOSHI, WELL
@@ -322,10 +224,18 @@ Verified Tokens:
   Unverified tokens show a warning with contract address, volume, and liquidity.
 
 Examples:
-  node swap.js --from ETH --to USDC --amount 0.1
-  node swap.js --from USDC --to WETH --amount 100 --execute
-  node swap.js --from USDC --to DAI --amount 50 --execute --timeout 600
+  node kyber.js --from ETH --to USDC --amount 0.1
+  node kyber.js --from USDC --to WETH --amount 100 --execute
+  node kyber.js --from USDC --to DAI --amount 50 --execute --slippage 1
 `)
+}
+
+// Convert token address to KyberSwap format
+function toKyberAddress(address) {
+    if (address.toLowerCase() === NATIVE_ETH) {
+        return KYBER_NATIVE_TOKEN
+    }
+    return address
 }
 
 // ============================================================================
@@ -369,18 +279,12 @@ async function main() {
         process.exit(1)
     }
 
-    // CoW Protocol only works with ERC20s - substitute ETH with WETH
-    let ethSubstituted = false
-    if (tokenIn.address.toLowerCase() === NATIVE_ETH) {
-        console.log('Note: CoW Protocol requires ERC20 tokens. Using WETH instead of ETH.')
-        tokenIn = { ...tokenIn, address: WETH_ADDRESS, symbol: 'WETH' }
-        ethSubstituted = true
-    }
-    if (tokenOut.address.toLowerCase() === NATIVE_ETH) {
-        console.log('Note: CoW Protocol requires ERC20 tokens. Receiving WETH instead of ETH.')
-        tokenOut = { ...tokenOut, address: WETH_ADDRESS, symbol: 'WETH' }
-        ethSubstituted = true
-    }
+    // Add KyberSwap-specific address format
+    tokenIn.kyberAddress = toKyberAddress(tokenIn.address)
+    tokenOut.kyberAddress = toKyberAddress(tokenOut.address)
+
+    const isNativeIn = tokenIn.address.toLowerCase() === NATIVE_ETH
+    const isNativeOut = tokenOut.address.toLowerCase() === NATIVE_ETH
 
     console.log(`From: ${tokenIn.symbol} ${tokenIn.verified ? '(verified)' : '(unverified)'}`)
     console.log(`      ${tokenIn.address}`)
@@ -393,83 +297,60 @@ async function main() {
     const amountIn = ethers.parseUnits(args.amount, tokenIn.decimals)
     console.log(`\nAmount: ${formatAmount(amountIn, tokenIn.decimals, tokenIn.symbol)}`)
 
-    // Check balance — when selling ETH via CoW, check both ETH and WETH
+    // Check balance
     let balance
-    let wrapAmount = 0n
-    if (ethSubstituted && tokenIn.address.toLowerCase() === WETH_ADDRESS.toLowerCase()) {
-        const wethContract = new ethers.Contract(WETH_ADDRESS, ERC20_ABI, provider)
-        const wethBalance = await wethContract.balanceOf(safeAddress)
-        const ethBalance = await provider.getBalance(safeAddress)
-
-        console.log(`Safe WETH balance: ${formatAmount(wethBalance, 18, 'WETH')}`)
-        console.log(`Safe ETH balance:  ${formatAmount(ethBalance, 18, 'ETH')}`)
-
-        if (wethBalance >= amountIn) {
-            balance = wethBalance
-        } else if (wethBalance + ethBalance >= amountIn) {
-            wrapAmount = amountIn - wethBalance
-            balance = amountIn // sufficient after wrapping
-            console.log(`Will wrap ${formatAmount(wrapAmount, 18, 'ETH')} to WETH as part of the swap transaction`)
-        } else {
-            console.error(`\nInsufficient ETH + WETH balance in Safe`)
-            console.error(`Need ${formatAmount(amountIn, 18, 'WETH')}, have ${formatAmount(wethBalance, 18, 'WETH')} + ${formatAmount(ethBalance, 18, 'ETH')}`)
-            process.exit(1)
-        }
+    if (isNativeIn) {
+        balance = await provider.getBalance(safeAddress)
+        console.log(`Safe ETH balance: ${formatAmount(balance, 18, 'ETH')}`)
     } else {
         const tokenContract = new ethers.Contract(tokenIn.address, ERC20_ABI, provider)
         balance = await tokenContract.balanceOf(safeAddress)
         console.log(`Safe balance: ${formatAmount(balance, tokenIn.decimals, tokenIn.symbol)}`)
-
-        if (balance < amountIn) {
-            console.error(`\nInsufficient ${tokenIn.symbol} balance in Safe`)
-            process.exit(1)
-        }
     }
 
-    // Get CoW quote
-    console.log('\nGetting CoW Protocol quote...\n')
-
-    let quoteResponse
-    try {
-        quoteResponse = await getCowQuote(tokenIn, tokenOut, amountIn, safeAddress)
-    } catch (error) {
-        console.error(`${error.message}`)
-        console.error(`\nTip: If CoW has no liquidity for this pair, try using the contract address directly.`)
+    if (balance < amountIn) {
+        console.error(`\nInsufficient ${tokenIn.symbol} balance in Safe`)
         process.exit(1)
     }
 
-    const q = quoteResponse.quote
-    const sellAmount = BigInt(q.sellAmount)
-    const buyAmount = BigInt(q.buyAmount)
-    const feeAmount = BigInt(q.feeAmount)
+    // Get KyberSwap route
+    console.log('\nGetting KyberSwap route...\n')
+
+    let routeData
+    try {
+        routeData = await getKyberRoute(tokenIn, tokenOut, amountIn, safeAddress)
+    } catch (error) {
+        console.error(`${error.message}`)
+        console.error(`\nTip: If KyberSwap has no liquidity for this pair, try CoW Protocol instead.`)
+        process.exit(1)
+    }
+
+    const routeSummary = routeData.routeSummary
+    const amountOut = BigInt(routeSummary.amountOut)
+    const gasEstimate = routeSummary.gas || '0'
+    const gasPriceGwei = routeSummary.gasPrice ? (Number(routeSummary.gasPrice) / 1e9).toFixed(2) : 'N/A'
+
+    // Calculate fee amount (0.5% of input)
+    const feeAmount = amountIn * BigInt(FEE_BPS) / 10000n
+
+    // Calculate minimum output with slippage
+    const minAmountOut = amountOut * BigInt(10000 - args.slippage) / 10000n
+    const slippagePct = args.slippage / 100
 
     console.log('='.repeat(55))
     console.log('                    SWAP SUMMARY')
     console.log('='.repeat(55))
     console.log(`  You pay:      ${formatAmount(amountIn, tokenIn.decimals, tokenIn.symbol)}`)
-    console.log(`  Fee:          ${formatAmount(feeAmount, tokenIn.decimals, tokenIn.symbol)}`)
-    console.log(`  You sell:     ${formatAmount(sellAmount, tokenIn.decimals, tokenIn.symbol)} (after fee)`)
-    // Smart slippage for display (same formula as submitCowOrder)
-    const displayFeeSlippage = feeAmount * 3n / 2n
-    const displayVolSlippage = sellAmount * 5n / 1000n
-    const displayTotalSlippage = displayFeeSlippage + displayVolSlippage
-    const displayBuySlippage = sellAmount > 0n
-        ? displayTotalSlippage * buyAmount / sellAmount
-        : buyAmount * 5n / 1000n
-    const minReceive = buyAmount - displayBuySlippage
-    const slippagePct = Number(displayBuySlippage * 10000n / buyAmount) / 100
-    console.log(`  You receive:  ~${formatAmount(buyAmount, tokenOut.decimals, tokenOut.symbol)}`)
-    console.log(`  Min receive:  ${formatAmount(minReceive, tokenOut.decimals, tokenOut.symbol)} (${slippagePct.toFixed(2)}% smart slippage)`)
-    console.log(`  Expires in:   ${args.timeout}s`)
-    if (wrapAmount > 0n) {
-        console.log(`  ETH wrap:     ${formatAmount(wrapAmount, 18, 'ETH')} → WETH (bundled in tx)`)
-    }
-    console.log(`  MEV protected via CoW Protocol batch auction`)
+    console.log(`  You receive:  ~${formatAmount(amountOut, tokenOut.decimals, tokenOut.symbol)}`)
+    console.log(`  Min receive:  ${formatAmount(minAmountOut, tokenOut.decimals, tokenOut.symbol)} (${slippagePct}% slippage)`)
+    console.log(`  Gas estimate: ${gasEstimate} (${gasPriceGwei} gwei)`)
+    console.log(`  Router:       ${routeData.routerAddress}`)
+    console.log(`  Route:        ${routeSummary.route?.length || 1} hop(s) via KyberSwap Aggregator`)
     console.log('='.repeat(55))
 
     if (!args.execute) {
         console.log('\nQUOTE ONLY - Add --execute to perform the swap')
-        console.log(`\nTo execute: node swap.js --from "${args.from}" --to "${args.to}" --amount ${args.amount} --execute`)
+        console.log(`\nTo execute: node kyber.js --from "${args.from}" --to "${args.to}" --amount ${args.amount} --execute`)
         process.exit(0)
     }
 
@@ -477,7 +358,7 @@ async function main() {
     // EXECUTION
     // ========================================================================
 
-    console.log('\nExecuting CoW Protocol swap...\n')
+    console.log('\nExecuting KyberSwap...\n')
 
     const agentPkPath = path.join(args.configDir, 'agent.pk')
     if (!fs.existsSync(agentPkPath)) {
@@ -496,116 +377,70 @@ async function main() {
         process.exit(1)
     }
 
-    // Step 1: Submit order to CoW API (off-chain, needed to get orderUid for presign)
-    console.log('Step 1: Submitting order to CoW Protocol...')
-    let orderUid, order
+    // Step 1: Build swap transaction from KyberSwap API
+    console.log('Step 1: Building swap transaction...')
+    let buildData
     try {
-        const result = await submitCowOrder(quoteResponse, safeAddress, args.timeout)
-        orderUid = result.orderUid
-        order = result.order
+        buildData = await buildKyberSwap(routeData, safeAddress, args.slippage)
     } catch (error) {
         console.error(`${error.message}`)
         process.exit(1)
     }
-    console.log(`   Order UID: ${orderUid}`)
-    console.log(`   Explorer:  https://explorer.cow.fi/base/orders/${orderUid}`)
+    console.log(`   Router: ${buildData.routerAddress}`)
+    console.log(`   Data length: ${buildData.data.length} bytes`)
 
-    // Step 2: Build on-chain operations (wrap + approve + presign) and execute
-    // All operations are bundled into a single MultiSend transaction when multiple
-    // steps are needed, saving gas and ensuring atomicity.
-    console.log('\nStep 2: Executing on-chain operations...')
+    // Step 2: Execute via ZodiacHelpers.kyberSwap
+    console.log('\nStep 2: Executing swap via ZodiacHelpers...')
 
     const zodiacHelpersInterface = new ethers.Interface(ZODIAC_HELPERS_ABI)
-    const cowPresignInterface = new ethers.Interface(COW_PRESIGN_ABI)
-    const multiSendTxs = []
 
-    // 2a: Wrap ETH → WETH if needed (user said ETH, CoW needs WETH)
-    if (wrapAmount > 0n) {
-        console.log(`   - Wrap ${formatAmount(wrapAmount, 18, 'ETH')} → WETH`)
-        const wrapData = zodiacHelpersInterface.encodeFunctionData('wrapETH', [wrapAmount])
-        multiSendTxs.push({ operation: 1, to: zodiacHelpersAddress, value: 0n, data: wrapData })
-    }
+    // For native ETH swaps, we need to pass the ethValue
+    const ethValue = isNativeIn ? amountIn : 0n
 
-    // 2b: Presign the order on-chain (must match submitted order exactly)
-    console.log('   - Presign CoW order')
-    const orderStruct = {
-        sellToken: order.sellToken,
-        buyToken: order.buyToken,
-        receiver: order.receiver || safeAddress,
-        sellAmount: BigInt(order.sellAmount),
-        buyAmount: BigInt(order.buyAmount),
-        validTo: order.validTo,
-        appData: order.appData,
-        feeAmount: 0n,
-        kind: kindToBytes32(order.kind),
-        partiallyFillable: order.partiallyFillable || false,
-        sellTokenBalance: balanceToBytes32(order.sellTokenBalance || 'erc20'),
-        buyTokenBalance: balanceToBytes32(order.buyTokenBalance || 'erc20'),
-    }
-
-    const presignData = cowPresignInterface.encodeFunctionData('cowPreSign', [
-        orderStruct,
-        orderUid,
+    // Encode the kyberSwap call
+    const swapData = zodiacHelpersInterface.encodeFunctionData('kyberSwap', [
+        isNativeIn ? NATIVE_ETH : tokenIn.address,
+        isNativeOut ? NATIVE_ETH : tokenOut.address,
+        amountIn,
+        minAmountOut,
+        buildData.data,
+        ethValue,
     ])
-    multiSendTxs.push({ operation: 1, to: zodiacHelpersAddress, value: 0n, data: presignData })
 
-    // Execute each operation individually via Roles (ZodiacHelpers is the allowed target)
-    for (let i = 0; i < multiSendTxs.length; i++) {
-        const tx = multiSendTxs[i]
-        console.log(`   Executing operation ${i + 1}/${multiSendTxs.length}...`)
-        const onChainTx = await roles.execTransactionWithRole(
-            tx.to,
-            tx.value,
-            tx.data,
-            1, // delegatecall
-            config.roleKey,
-            true
-        )
-        console.log(`   Transaction: ${onChainTx.hash}`)
-        const receipt = await onChainTx.wait()
-        if (receipt.status !== 1) {
-            console.error(`   Operation ${i + 1} failed!`)
-            process.exit(1)
-        }
+    // Execute via Roles (delegatecall to ZodiacHelpers)
+    console.log('   Executing on-chain...')
+    const tx = await roles.execTransactionWithRole(
+        zodiacHelpersAddress,
+        0n, // value is 0 - ethValue is passed in swapData
+        swapData,
+        1, // delegatecall
+        config.roleKey,
+        true
+    )
+    console.log(`   Transaction: ${tx.hash}`)
+
+    const receipt = await tx.wait()
+    if (receipt.status !== 1) {
+        console.error('Transaction failed!')
+        process.exit(1)
     }
-    const lastTxHash = multiSendTxs.length > 0 ? 'see above' : 'none'
 
-    console.log('   All on-chain operations complete!')
+    // Step 3: Show results
+    console.log('\nSWAP COMPLETE')
+    console.log(`   Sold: ${formatAmount(amountIn, tokenIn.decimals, tokenIn.symbol)}`)
+    console.log(`   Received: ~${formatAmount(amountOut, tokenOut.decimals, tokenOut.symbol)}`)
 
-    // Step 3: Poll order status
-    console.log('\nStep 3: Waiting for order to be filled...')
-    console.log(`   Timeout: ${args.timeout}s`)
-
-    const result = await pollOrderStatus(orderUid, args.timeout * 1000)
-
-    switch (result.status) {
-        case 'fulfilled': {
-            let newBalance
-            const outContract = new ethers.Contract(tokenOut.address, ERC20_ABI, provider)
-            newBalance = await outContract.balanceOf(safeAddress)
-
-            console.log('\nSWAP COMPLETE')
-            console.log(`   Sold: ${formatAmount(sellAmount, tokenIn.decimals, tokenIn.symbol)}`)
-            console.log(`   Received: ~${formatAmount(buyAmount, tokenOut.decimals, tokenOut.symbol)}`)
-            console.log(`   New ${tokenOut.symbol} balance: ${formatAmount(newBalance, tokenOut.decimals, tokenOut.symbol)}`)
-            console.log(`   Explorer: https://explorer.cow.fi/base/orders/${orderUid}`)
-            break
-        }
-        case 'expired':
-            console.error('\nOrder expired without being filled.')
-            console.error('Tip: Try again with a higher slippage tolerance.')
-            process.exit(1)
-            break
-        case 'cancelled':
-            console.error('\nOrder was cancelled.')
-            process.exit(1)
-            break
-        case 'timeout':
-            console.error(`\nTimed out after ${args.timeout}s. Order may still be filled.`)
-            console.error(`Check status: https://explorer.cow.fi/base/orders/${orderUid}`)
-            process.exit(1)
-            break
+    // Get new balance
+    if (isNativeOut) {
+        const newBalance = await provider.getBalance(safeAddress)
+        console.log(`   New ETH balance: ${formatAmount(newBalance, 18, 'ETH')}`)
+    } else {
+        const outContract = new ethers.Contract(tokenOut.address, ERC20_ABI, provider)
+        const newBalance = await outContract.balanceOf(safeAddress)
+        console.log(`   New ${tokenOut.symbol} balance: ${formatAmount(newBalance, tokenOut.decimals, tokenOut.symbol)}`)
     }
+
+    console.log(`   Tx: https://basescan.org/tx/${receipt.hash}`)
 }
 
 main().catch(error => {
