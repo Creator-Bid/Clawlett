@@ -27,16 +27,6 @@ const __dirname = path.dirname(__filename)
 const DEFAULT_RPC_URL = 'https://mainnet.base.org'
 const CHAIN_ID = 8453
 const API_BASE_URL = process.env.WALLET_API_URL || 'https://trenches.bid'
-const VERCEL_BYPASS = process.env.VERCEL_PROTECTION_BYPASS || ''
-
-// Wrap global fetch to inject Vercel protection bypass header when configured
-const _origFetch = globalThis.fetch
-if (VERCEL_BYPASS) {
-    globalThis.fetch = (url, opts = {}) => {
-        opts.headers = { ...opts.headers, 'x-vercel-protection-bypass': VERCEL_BYPASS }
-        return _origFetch(url, opts)
-    }
-}
 
 // Contract addresses
 const CONTRACTS = {

@@ -21,7 +21,7 @@
  *
  * Usage:
  *   node trenches.js create --name "Token" --symbol TKN --description "desc" [--initial-buy 0.01]
- *   node trenches.js buy --token TKN --amount 0.01
+ *   node trenches.js buy --token TKN --amount 0.01 [--all]
  *   node trenches.js sell --token TKN --amount 1000 [--all]
  *   node trenches.js info TKN
  *   node trenches.js trending [--window 1h] [--limit 10]
@@ -42,7 +42,6 @@ const __dirname = path.dirname(__filename)
 const DEFAULT_RPC_URL = 'https://mainnet.base.org'
 const CHAIN_ID = 8453
 const TRENCHES_API_URL = process.env.TRENCHES_API_URL || 'https://trenches.bid'
-const VERCEL_PROTECTION_BYPASS = process.env.VERCEL_PROTECTION_BYPASS || ''
 
 // Contracts
 const AGENT_KEY_FACTORY = '0x2EA0010c18fa7239CAD047eb2596F8d8B7Cf2988'
@@ -90,11 +89,7 @@ function loadConfig(configDir) {
 }
 
 function apiHeaders(extra = {}) {
-    const headers = { ...extra }
-    if (VERCEL_PROTECTION_BYPASS) {
-        headers['x-vercel-protection-bypass'] = VERCEL_PROTECTION_BYPASS
-    }
-    return headers
+    return { ...extra }
 }
 
 function loadAgentAndRoles(config, configDir, rpcUrl) {
@@ -430,8 +425,8 @@ Trenches token creation and bonding curve trading on Base.
 
 Subcommands:
   create      Create a new token on Trenches (0.005 ETH mint cost)
-  buy         Buy tokens with ETH on bonding curve
-  sell        Sell tokens for ETH on bonding curve
+  buy         Buy tokens on bonding curve (with ETH or BID depending on pair)
+  sell        Sell tokens on bonding curve (receive ETH or BID depending on pair)
   info        Get token information
   trending    Show trending tokens
   new         Show newly created tokens
@@ -449,6 +444,7 @@ Examples:
   node trenches.js create --name "My Token" --symbol MTK --description "desc" --base-token ETH
   node trenches.js create --name "My Token" --symbol MTK --description "desc" --no-antibot --initial-buy 0.01
   node trenches.js buy --token MTK --amount 0.01
+  node trenches.js buy --token CLAWLETT --all
   node trenches.js sell --token MTK --amount 1000
   node trenches.js sell --token MTK --all
   node trenches.js info MTK
@@ -468,7 +464,8 @@ Usage: node trenches.js create --name <NAME> --symbol <SYMBOL> --description <DE
 Create a new token on Trenches bonding curve.
 
 Mint cost: 0.005 ETH (paid to the factory contract on creation).
-If --initial-buy is specified, the total ETH required is 0.005 + initial buy amount.
+If --initial-buy is specified, the amount is in the base token (ETH or BID).
+Mint cost (0.005 ETH) is always paid in ETH regardless of base token.
 Note: --initial-buy cannot be used with anti-bot protection (enabled by default).
 
 Arguments:
@@ -477,7 +474,7 @@ Arguments:
   --description     Token description (required)
   --twitter         Twitter handle
   --website         Website URL
-  --initial-buy     Initial buy amount in ETH (optional, e.g., 0.01)
+  --initial-buy     Initial buy amount in base token (optional, e.g., 0.01)
   --base-token      Base token for bonding curve: BID (default) or ETH
   --no-antibot      Disable anti-bot/sniper protection (enabled by default)
   --image           Path to token image file (PNG/JPEG/WEBP, max 4MB)
@@ -491,24 +488,29 @@ Examples:
             break
         case 'buy':
             console.log(`
-Usage: node trenches.js buy --token <SYMBOL> --amount <ETH_AMOUNT>
+Usage: node trenches.js buy --token <SYMBOL> --amount <AMOUNT> [--all]
 
-Buy tokens with ETH on the Trenches bonding curve.
+Buy tokens on the Trenches bonding curve. The amount is denominated in the
+pair's base token (ETH for ETH-paired tokens, BID for BID-paired tokens).
+The base token is detected automatically from the Trenches API.
 
 Arguments:
   --token, -t       Token symbol or address (required)
-  --amount, -a      ETH amount to spend (required)
+  --amount, -a      Base token amount to spend (required unless --all)
+  --all             Spend entire base token balance
 
 Examples:
   node trenches.js buy --token MTK --amount 0.01
-  node trenches.js buy --token 0x1234...abcd --amount 0.05
+  node trenches.js buy --token CLAWLETT --amount 100
+  node trenches.js buy --token CLAWLETT --all
 `)
             break
         case 'sell':
             console.log(`
 Usage: node trenches.js sell --token <SYMBOL> --amount <TOKEN_AMOUNT> [--all]
 
-Sell tokens for ETH on the Trenches bonding curve.
+Sell tokens on the Trenches bonding curve. You receive the pair's base token
+(ETH for ETH-paired tokens, BID for BID-paired tokens).
 
 Arguments:
   --token, -t       Token symbol or address (required)
