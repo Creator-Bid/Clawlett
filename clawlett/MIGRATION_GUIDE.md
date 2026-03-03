@@ -115,7 +115,7 @@ No migration needed. Run `initialize.js` which uses the new ZodiacHelpers addres
 | | Address |
 |---|---------|
 | Old | `0xb34a6210013977FC7D6082287e03915a66249799` |
-| New | `0x49E596467D5e3C876Eece999d88a2135596bde18` |
+| New | `0x38441B5bd6370b000747c97a12877c83c0A32eaF` |
 
 The new contract adds `kyberSwap()` for executing swaps via KyberSwap Meta Aggregation Router V2 while retaining all existing functions (`cowPreSign`, `wrapETH`, `unwrapWETH`, `createViaFactory`, `tradeViaFactory`).
 
@@ -144,8 +144,8 @@ The Safe **owner** must submit a transaction to allow the new ZodiacHelpers addr
 Use the [Safe Transaction Builder](https://app.safe.global) to batch these calls to the **Roles Modifier** (`roles` address from `config/wallet.json`):
 
 ```
-1. scopeTarget(roleKey, 0x49E596467D5e3C876Eece999d88a2135596bde18)
-2. allowTarget(roleKey, 0x49E596467D5e3C876Eece999d88a2135596bde18, 3)
+1. scopeTarget(roleKey, 0x38441B5bd6370b000747c97a12877c83c0A32eaF)
+2. allowTarget(roleKey, 0x38441B5bd6370b000747c97a12877c83c0A32eaF, 3)
 3. revokeTarget(roleKey, 0xb34a6210013977FC7D6082287e03915a66249799)
 ```
 

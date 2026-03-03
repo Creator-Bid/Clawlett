@@ -131,7 +131,7 @@ async function main() {
         process.exit(1)
     }
 
-    const provider = new ethers.JsonRpcProvider(args.rpc)
+    const provider = new ethers.JsonRpcProvider(args.rpc, 8453, { staticNetwork: true })
     const safeAddress = config.safe
 
     console.log(`\nSafe: ${safeAddress}\n`)

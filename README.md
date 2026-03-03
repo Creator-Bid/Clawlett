@@ -191,7 +191,7 @@ Config is stored in `config/wallet.json` after initialization:
 | CoW Settlement | `0x9008D19f58AAbD9eD0D60971565AA8510560ab41` | CoW Protocol settlement |
 | CoW Vault Relayer | `0xC92E8bdf79f0507f65a392b0ab4667716BFE0110` | CoW token allowance target |
 | KyberSwap Router | `0x6131B5fae19EA4f9D964eAc0408E4408b66337b5` | KyberSwap Meta Aggregation Router V2 |
-| ZodiacHelpers | `0x49E596467D5e3C876Eece999d88a2135596bde18` | Approvals, CoW presign, KyberSwap, WETH wrap/unwrap, Trenches factory wrappers via delegatecall |
+| ZodiacHelpers | `0x38441B5bd6370b000747c97a12877c83c0A32eaF` | Approvals, CoW presign, KyberSwap, WETH wrap/unwrap, Trenches factory wrappers via delegatecall |
 | AgentKeyFactoryV3 | `0x2EA0010c18fa7239CAD047eb2596F8d8B7Cf2988` | Trenches token creation and trading |
 | Safe Factory | `0xa6B71E26C5e0845f74c812102Ca7114b6a896AB2` | Safe deployer |
 | Roles Singleton | `0x9646fDAD06d3e24444381f44362a3B0eB343D337` | Zodiac Roles |

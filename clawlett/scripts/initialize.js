@@ -27,16 +27,6 @@ const __dirname = path.dirname(__filename)
 const DEFAULT_RPC_URL = 'https://mainnet.base.org'
 const CHAIN_ID = 8453
 const API_BASE_URL = process.env.WALLET_API_URL || 'https://trenches.bid'
-const VERCEL_BYPASS = process.env.VERCEL_PROTECTION_BYPASS || ''
-
-// Wrap global fetch to inject Vercel protection bypass header when configured
-const _origFetch = globalThis.fetch
-if (VERCEL_BYPASS) {
-    globalThis.fetch = (url, opts = {}) => {
-        opts.headers = { ...opts.headers, 'x-vercel-protection-bypass': VERCEL_BYPASS }
-        return _origFetch(url, opts)
-    }
-}
 
 // Contract addresses
 const CONTRACTS = {
@@ -47,7 +37,7 @@ const CONTRACTS = {
     RolesSingleton: '0x9646fDAD06d3e24444381f44362a3B0eB343D337',
     ModuleProxyFactory: '0x000000000000aDdB49795b0f9bA5BC298cDda236',
     AeroUniversalRouter: '0x6Df1c91424F79E40E33B1A48F0687B666bE71075',
-    ZodiacHelpers: '0x49E596467D5e3C876Eece999d88a2135596bde18',
+    ZodiacHelpers: '0x38441B5bd6370b000747c97a12877c83c0A32eaF',
     KyberSwapRouter: '0x6131B5fae19EA4f9D964eAc0408E4408b66337b5',
     IdentityRegistry: '0x8004A169FB4a3325136EB29fA0ceB6D2e539a432',
     CNS: '0x299319e0BC8d67e11AD8b17D4d5002033874De3a',
@@ -391,7 +381,7 @@ async function main() {
 
     const owner = ethers.getAddress(args.owner)
     const agentName = args.name ? args.name.toUpperCase() : null
-    const provider = new ethers.JsonRpcProvider(args.rpc)
+    const provider = new ethers.JsonRpcProvider(args.rpc, CHAIN_ID, { staticNetwork: true })
 
     console.log('\n========================================')
     console.log('     Claw Wallet Initialization')

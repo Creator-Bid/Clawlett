@@ -95,12 +95,15 @@ Tokens not in the verified list are searched via DexScreener (Base pairs). Searc
 ## Setup
 
 1. Owner provides their wallet address (and optionally an **agent name**)
-2. Agent generates keypair → **Owner sends 0.001 ETH on Base Mainnet** to agent for gas
-3. Agent deploys Safe on Base Mainnet (owner as sole owner)
-4. Agent registers with backend and optionally mints CNS name on-chain (if `--name` provided)
-5. Agent deploys Zodiac Roles with swap permissions
-6. Agent removes itself as Safe owner (keeps Roles access)
-7. **Owner funds Safe on Base Mainnet** with tokens to trade
+2. Agent generates keypair → **Owner sends at least 0.0001 ETH on Base Mainnet** to agent for gas (0.001 ETH recommended to cover all deployment transactions)
+3. Agent deploys Safe on Base Mainnet (agent as initial owner)
+4. Agent deploys Zodiac Roles module
+5. Agent configures Roles permissions via MultiSend (enable module, scope targets, assign roles)
+6. Agent registers with backend API
+7. Agent optionally mints CNS name on-chain (if `--name` provided)
+8. Agent transfers Safe ownership to human owner and removes itself as owner (keeps Roles access)
+9. Agent registers on ERC-8004 Identity Registry and transfers identity NFT to Safe
+10. **Owner funds Safe on Base Mainnet** with tokens to trade
 
 ## Usage
 
@@ -162,6 +165,8 @@ Create a token called "My Token" with symbol MTK
 Create a token paired with BID (default base token)
 Create a token with anti-bot disabled and an initial buy
 Buy 0.01 ETH worth of MTK on Trenches
+Buy 100 BID worth of CLAWLETT on Trenches
+Buy all my BID into CLAWLETT
 Sell all my MTK tokens
 What's trending on Trenches?
 Show me the top gainers
@@ -179,7 +184,7 @@ When a user asks to create a token, the agent MUST collect ALL of the following 
 | Image | **Yes** | Path to a token image file (PNG/JPEG/WEBP, max 4MB) |
 | Base token | No | `BID` (default) or `ETH` — which token to pair with |
 | Anti-bot protection | No | ON by default (10-minute sniper protection). Ask user if they want it enabled or disabled |
-| Initial buy | No | Amount of ETH to buy immediately after creation (only works with anti-bot OFF) |
+| Initial buy | No | Amount of base token (ETH or BID, depending on pair) to buy immediately after creation (only works with anti-bot OFF) |
 | Twitter | No | Twitter/X handle for the token |
 | Website | No | Website URL for the token |
 | Team allocation | No | SSL team positions that the team can claim after the price moves beyond a given position |
@@ -264,8 +269,9 @@ node scripts/trenches.js create --name "My Token" --symbol MTK --description "de
 node scripts/trenches.js create --name "My Token" --symbol MTK --description "desc" --no-antibot --initial-buy 0.01
 node scripts/trenches.js create --name "My Token" --symbol MTK --description "desc" --image ./logo.png
 
-# Trenches: Buy/sell tokens
+# Trenches: Buy/sell tokens (amount is in base token: ETH or BID depending on pair)
 node scripts/trenches.js buy --token MTK --amount 0.01
+node scripts/trenches.js buy --token CLAWLETT --all
 node scripts/trenches.js sell --token MTK --amount 1000
 node scripts/trenches.js sell --token MTK --all
 
@@ -312,7 +318,7 @@ Scripts read from `config/wallet.json` (configured for Base Mainnet):
 | CoW Settlement | `0x9008D19f58AAbD9eD0D60971565AA8510560ab41` | CoW Protocol settlement |
 | CoW Vault Relayer | `0xC92E8bdf79f0507f65a392b0ab4667716BFE0110` | CoW token allowance target |
 | KyberSwap Router | `0x6131B5fae19EA4f9D964eAc0408E4408b66337b5` | KyberSwap Meta Aggregation Router V2 |
-| ZodiacHelpers | `0x49E596467D5e3C876Eece999d88a2135596bde18` | Approvals, CoW presign, KyberSwap, WETH wrap/unwrap, Trenches factory wrappers via delegatecall |
+| ZodiacHelpers | `0x38441B5bd6370b000747c97a12877c83c0A32eaF` | Approvals, CoW presign, KyberSwap, WETH wrap/unwrap, Trenches factory wrappers via delegatecall |
 | AgentKeyFactoryV3 | `0x2EA0010c18fa7239CAD047eb2596F8d8B7Cf2988` | Trenches token creation and trading |
 | Safe Factory | `0xa6B71E26C5e0845f74c812102Ca7114b6a896AB2` | Safe deployer |
 | Roles Singleton | `0x9646fDAD06d3e24444381f44362a3B0eB343D337` | Zodiac Roles |

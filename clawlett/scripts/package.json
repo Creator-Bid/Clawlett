@@ -1,6 +1,6 @@
 {
   "name": "clawlett-scripts",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "type": "module",
   "scripts": {
     "initialize": "node initialize.js",
