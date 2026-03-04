@@ -547,18 +547,9 @@ async function main() {
             })
         }
 
-        // Scope and allow Aerodrome Universal Router
-        console.log('   - scopeTarget(AeroUniversalRouter)')
-        transactions.push({
-            to: rolesAddress,
-            data: rolesInterface.encodeFunctionData('scopeTarget', [ROLE_KEY, CONTRACTS.AeroUniversalRouter]),
-        })
-
-        console.log('   - allowTarget(AeroUniversalRouter, Send)')
-        transactions.push({
-            to: rolesAddress,
-            data: rolesInterface.encodeFunctionData('allowTarget', [ROLE_KEY, CONTRACTS.AeroUniversalRouter, ExecutionOptions.Send]),
-        })
+        // NOTE: Aerodrome Universal Router is NOT granted direct access.
+        // All Aerodrome swaps must go through ZodiacHelpers.aeroExecute(),
+        // which validates output tokens against the WhitelistRegistry.
 
         // Scope and allow ZodiacHelpers (with DelegateCall)
         console.log('   - scopeTarget(ZodiacHelpers)')

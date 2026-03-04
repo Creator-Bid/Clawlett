@@ -1,12 +1,3 @@
-/**
- * Shared token resolution module
- *
- * Provides verified token lists, symbol resolution, and DexScreener search
- * fallback for tokens not in the hardcoded list.
- */
-
-import { ethers } from 'ethers'
-
 // ============================================================================
 // VERIFIED TOKENS - Safeguard against scam tokens
 // ============================================================================
@@ -25,6 +16,16 @@ const VERIFIED_TOKENS = {
     'TOSHI': '0xAC1Bd2486aAf3B5C0fc3Fd868558b082a531B2B4',
     'WELL': '0xA88594D404727625A9437C3f886C7643872296AE',
     'BID': '0xa1832f7f4e534ae557f9b5ab76de54b1873e498b',
+    // OpenClaw ecosystem tokens
+    'CLAWNCH': '0xa1F72459dfA10BAD200Ac160eCd78C6b77a747be',
+    'KELLYCLAUDE': '0x50d2280441372486beecdd328c1854743ebacb07',
+    'ANTIHUNTER': '0xe2f3fae4bc62e21826018364aa30ae45d430bb07',
+    'MOLT': '0xB695559b26BB2c9703ef1935c37AeaE9526bab07',
+    'CLAWD': '0x9f86dB9fc6f7c9408e8Fda3Ff8ce4e78ac7a6b07',
+    'FELIX': '0xf30bf00edd0c22db54c9274b90d2a4c21fc09b07',
+    'FOMOLT': '0xeff5672a3e73e104a56b7d16c1166f2ae0714b07',
+    'BUNKER': '0xce16ef461d88256d2d80dfd31f0d9e7a9fd59213',
+    'X40G': '0xc4047680d153fa3b741b016e871dfca723f1deea',
 }
 
 const TOKEN_ALIASES = {
@@ -32,6 +33,12 @@ const TOKEN_ALIASES = {
     'ETHER': 'ETH',
     'USD COIN': 'USDC',
     'TETHER': 'USDT',
+    'MOLTBOOK': 'MOLT',
+    'KELLY': 'KELLYCLAUDE',
+    'ANTIHUNT': 'ANTIHUNTER',
+    'X402GUARD': 'X40G',
+    'MOLT BUNKER': 'BUNKER',
+    'BIOUNIT': 'Bio Unit 000',
 }
 
 const PROTECTED_SYMBOLS = ['ETH', 'WETH', 'USDC', 'USDT', 'DAI', 'USDS', 'AERO', 'cbBTC', 'BID']
