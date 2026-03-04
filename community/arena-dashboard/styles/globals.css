@@ -1,0 +1,146 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-arena-deep text-gray-100 antialiased;
+    background-image: radial-gradient(ellipse at 50% 0%, rgba(59, 39, 130, 0.12) 0%, transparent 60%);
+    background-attachment: fixed;
+  }
+}
+
+@layer components {
+  /* ── Trading Card ── */
+  .wallet-card {
+    @apply relative rounded-xl overflow-hidden cursor-pointer;
+    @apply transition-all duration-300 ease-out;
+    @apply shadow-card;
+    background: linear-gradient(
+      165deg,
+      rgba(26, 15, 61, 0.9) 0%,
+      rgba(19, 11, 46, 0.95) 100%
+    );
+    border: 1px solid rgba(61, 39, 130, 0.3);
+  }
+  .wallet-card:hover {
+    @apply -translate-y-1 shadow-card-hover;
+    border-color: rgba(91, 58, 173, 0.5);
+  }
+
+  /* Rank-specific card accents */
+  .wallet-card--rank-1 {
+    border-color: rgba(255, 215, 0, 0.4);
+    @apply shadow-card-gold;
+  }
+  .wallet-card--rank-1:hover {
+    border-color: rgba(255, 215, 0, 0.6);
+  }
+  .wallet-card--rank-2 {
+    border-color: rgba(192, 192, 192, 0.3);
+    @apply shadow-card-silver;
+  }
+  .wallet-card--rank-3 {
+    border-color: rgba(205, 127, 50, 0.3);
+    @apply shadow-card-bronze;
+  }
+  .wallet-card--you {
+    border-color: rgba(59, 130, 246, 0.4);
+  }
+
+  /* Stagger entrance */
+  .wallet-card {
+    opacity: 0;
+    animation: cardEnter 0.5s ease-out forwards;
+  }
+
+  /* ── Overlay ── */
+  .card-overlay-backdrop {
+    @apply fixed inset-0 z-50 flex items-center justify-center p-4;
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(12px);
+    animation: fadeIn 0.2s ease-out;
+  }
+  .card-overlay-content {
+    @apply rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto;
+    background: linear-gradient(
+      170deg,
+      rgba(26, 15, 61, 0.95) 0%,
+      rgba(13, 6, 24, 0.98) 100%
+    );
+    border: 1px solid rgba(61, 39, 130, 0.4);
+    animation: overlayEnter 0.3s ease-out;
+  }
+
+  /* ── Token Pill ── */
+  .token-pill {
+    @apply inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium;
+    background: rgba(36, 22, 84, 0.6);
+    border: 1px solid rgba(61, 39, 130, 0.3);
+  }
+
+  /* ── Sort Pills ── */
+  .sort-pill {
+    @apply px-3 py-1.5 rounded-full text-xs font-medium transition-all cursor-pointer select-none;
+    @apply text-gray-400 hover:text-gray-200;
+    background: rgba(26, 15, 61, 0.5);
+    border: 1px solid rgba(61, 39, 130, 0.2);
+  }
+  .sort-pill:hover {
+    background: rgba(36, 22, 84, 0.7);
+    border-color: rgba(61, 39, 130, 0.4);
+  }
+  .sort-pill.active {
+    @apply text-neon-green;
+    background: rgba(255, 140, 20, 0.08);
+    border-color: rgba(255, 140, 20, 0.25);
+  }
+
+  /* ── Neon text ── */
+  .text-neon {
+    @apply text-neon-green;
+    text-shadow: 0 0 10px rgba(255, 140, 20, 0.4);
+  }
+
+  /* ── Glow ring behind avatar ── */
+  .claw-glow {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(20px);
+    opacity: 0.4;
+    animation: glowPulse 3s ease-in-out infinite;
+  }
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #130b2e;
+}
+::-webkit-scrollbar-thumb {
+  background: #3d2782;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #5b3aad;
+}
+
+/* ── Keyframes (used by both Tailwind and raw CSS) ── */
+@keyframes cardEnter {
+  0% { opacity: 0; transform: translateY(24px) scale(0.96); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes overlayEnter {
+  0% { opacity: 0; transform: scale(0.92); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes glowPulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.7; }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}

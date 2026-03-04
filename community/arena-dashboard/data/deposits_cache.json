@@ -1,0 +1,1604 @@
+[
+  {
+    "safe": "0xc98308c6211334f785b0d0493c7c38adea1dd332",
+    "owner": "0x40bd61676fd2aa444e7f81d21c9b4c28d6b84dd1",
+    "deposit_detected": false,
+    "total_deposited": 0,
+    "total_withdrawn": 0,
+    "net_deposits": 0,
+    "initial_usd": 0,
+    "deposits": [],
+    "withdrawals": [],
+    "airdrops": [],
+    "deposit_breakdown": [],
+    "withdrawal_breakdown": [],
+    "first_swap_block": null,
+    "id": 1,
+    "tx_count": 3
+  },
+  {
+    "safe": "0xb11c2b749bc85d4e7336d68da442baec4f638f87",
+    "owner": "0x40bd61676fd2aa444e7f81d21c9b4c28d6b84dd1",
+    "deposit_detected": false,
+    "total_deposited": 0,
+    "total_withdrawn": 0,
+    "net_deposits": 0,
+    "initial_usd": 0,
+    "deposits": [],
+    "withdrawals": [],
+    "airdrops": [],
+    "deposit_breakdown": [],
+    "withdrawal_breakdown": [],
+    "first_swap_block": null,
+    "id": 2,
+    "tx_count": 4
+  },
+  {
+    "safe": "0x548b35150688efbdb6b486200b95efe4de3c9bf8",
+    "owner": "0x519e1aa85e29a9ff79001fc09ffa57491667268f",
+    "deposit_detected": true,
+    "total_deposited": 215.07,
+    "total_withdrawn": 0,
+    "net_deposits": 215.07,
+    "initial_usd": 215.07,
+    "deposits": [
+      {
+        "type": "ETH",
+        "amount": 0.1,
+        "usd": 215.07,
+        "from": "0x519e1aa85e29a9ff79001fc09ffa57491667268f",
+        "block": 42074689,
+        "timestamp": "2026-02-12T23:25:25.000Z"
+      }
+    ],
+    "withdrawals": [],
+    "airdrops": [],
+    "deposit_breakdown": [
+      "ETH: 0.100000 ($215.07)"
+    ],
+    "withdrawal_breakdown": [],
+    "first_swap_block": 42357187,
+    "id": 3,
+    "tx_count": 14
+  },
+  {
+    "safe": "0xa355ba9c748ee79c9aefecd49b65880e9f7f2b98",
+    "owner": "0x2cf3724b3b0d2c48e0de7bdd115d384c280c3c8c",
+    "deposit_detected": false,
+    "total_deposited": 0,
+    "total_withdrawn": 0,
+    "net_deposits": 0,
+    "initial_usd": 0,
+    "deposits": [],
+    "withdrawals": [],
+    "airdrops": [],
+    "deposit_breakdown": [],
+    "withdrawal_breakdown": [],
+    "first_swap_block": null,
+    "id": 4,
+    "tx_count": 4
+  },
+  {
+    "safe": "0x4f80ba46d258cbdb039ee3aac49a1f73deded11c",
+    "owner": "0x2cf3724b3b0d2c48e0de7bdd115d384c280c3c8c",
+    "deposit_detected": true,
+    "total_deposited": 10.75,
+    "total_withdrawn": 0,
+    "net_deposits": 10.75,
+    "initial_usd": 10.75,
+    "deposits": [
+      {
+        "type": "ETH",
+        "amount": 0.005,
+        "usd": 10.75,
+        "from": "0xaa5abf02cf3031e1e8ab0262ed0fce35337d5b15",
+        "block": 42077478,
+        "timestamp": "2026-02-13T00:58:23.000Z"
+      }
+    ],
+    "withdrawals": [],
+    "airdrops": [],
+    "deposit_breakdown": [
+      "ETH: 0.005000 ($10.75)"
+    ],
+    "withdrawal_breakdown": [],
+    "first_swap_block": null,
+    "id": 5,
+    "tx_count": 5
+  },
+  {
+    "safe": "0xaf671302cb75c66f14bc2a9e236855b66e6b8995",
+    "owner": "0x5cb4c7ba70fb5b9804bb9e7b29f6ad486e63124b",
+    "deposit_detected": true,
+    "total_deposited": 86.58,
+    "total_withdrawn": 0,
+    "net_deposits": 86.58,
+    "initial_usd": 86.58,
+    "deposits": [
+      {
+        "type": "ETH",
+        "amount": 0.028,
+        "usd": 60.22,
+        "from": "0x411f30b2a5465cf117d5f78e0dc608bcc1a1d871",
+        "block": 42080957,
+        "timestamp": "2026-02-13T02:54:21.000Z"
+      },
+      {
+        "type": "ETH",
+        "amount": 0.012257425548395132,
+        "usd": 26.36,
+        "from": "0x5cb4c7ba70fb5b9804bb9e7b29f6ad486e63124b",
+        "block": 42104146,
+        "timestamp": "2026-02-13T15:47:19.000Z"
+      }
+    ],
+    "withdrawals": [],
+    "airdrops": [],
+    "deposit_breakdown": [
+      "ETH: 0.028000 ($60.22)",
+      "ETH: 0.012257 ($26.36)"
+    ],
+    "withdrawal_breakdown": [],
+    "first_swap_block": 42082879,
+    "id": 6,
+    "tx_count": 84
+  },
+  {
+    "safe": "0x15b836eae93c9bea5901a81a6a62a3a25b59f283",
+    "owner": "0x80964d34bb25b76bcaf4b96fa30f3180e46ed4f4",
+    "deposit_detected": true,
+    "total_deposited": 86.03,
+    "total_withdrawn": 0,
+    "net_deposits": 86.03,
+    "initial_usd": 86.03,
+    "deposits": [
+      {
+        "type": "ETH",
+        "amount": 0.04,
+        "usd": 86.03,
+        "from": "0xfcf083b04a25ea6403f2a38b8e275c57e48e2c06",
+        "block": 42273056,
+        "timestamp": "2026-02-17T13:37:39.000Z"
+      }
+    ],
+    "withdrawals": [],
+    "airdrops": [],
+    "deposit_breakdown": [
+      "ETH: 0.040000 ($86.03)"
+    ],
+    "withdrawal_breakdown": [],
+    "first_swap_block": null,
+    "id": 7,
+    "tx_count": 5
+  },
+  {
+    "safe": "0x4a20472c27d00df709f8e5f0944aa1d87393e4bd",
+    "owner": "0xaab80bc6b6040ae845ce225181fd72297ba71b13",
+    "deposit_detected": true,
+    "total_deposited": 25.68,
+    "total_withdrawn": 0,
+    "net_deposits": 25.68,
+    "initial_usd": 25.68,
+    "deposits": [
+      {
+        "type": "ETH",
+        "amount": 0.00093995278695072,
+        "usd": 2.02,
+        "from": "0xaab80bc6b6040ae845ce225181fd72297ba71b13",
+        "block": 42097110,
+        "timestamp": "2026-02-13T11:52:47.000Z"
+      },
+      {
+        "type": "ETH",
+        "amount": 0.011,
+        "usd": 23.66,
+        "from": "0x6fd81ccfb782ef65959500ba676b5ce22744c990",
+        "block": 42097324,
+        "timestamp": "2026-02-13T11:59:55.000Z"
+      }
+    ],
+    "withdrawals": [],
+    "airdrops": [],
+    "deposit_breakdown": [
+      "ETH: 0.000940 ($2.02)",
+      "ETH: 0.011000 ($23.66)"
+    ],
+    "withdrawal_breakdown": [],
+    "first_swap_block": 42097364,
+    "id": 8,
+    "tx_count": 17
+  },
+  {
+    "safe": "0x5ad7801e3af0002263adfc4235c1e1f2bab48614",
+    "owner": "0xbad35fa6e368e90fc4faf63507f2d0a2fdf94baf",
+    "deposit_detected": true,
+    "total_deposited": 10.0,
+    "total_withdrawn": 9.25,
+    "net_deposits": 0.75,
+    "initial_usd": 0.75,
+    "deposits": [
+      {
+        "type": "USDC",
+        "token_address": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+        "amount": 10.0,
+        "usd": 10.0,
+        "from": "0xbad35fa6e368e90fc4faf63507f2d0a2fdf94baf",
+        "block": 42059846,
+        "timestamp": "2026-02-12T15:10:39.000Z"
+      }
+    ],
+    "withdrawals": [
+      {
+        "type": "USDC",
+        "token_address": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+        "amount": 9.252578,
+        "usd": 9.25,
+        "to": "0xbad35fa6e368e90fc4faf63507f2d0a2fdf94baf",
+        "block": 42349856,
+        "timestamp": "2026-02-19T08:17:39.000Z"
+      }
+    ],
+    "airdrops": [],
+    "deposit_breakdown": [
+      "USDC: 10.000000 ($10.00)"
+    ],
+    "withdrawal_breakdown": [
+      "USDC: 9.252578 ($9.25)"
+    ],
+    "first_swap_block": 42060075,
+    "id": 9,
+    "tx_count": 23
+  },
+  {
+    "safe": "0x20474e9010306d28de401ea4e5b40d13c726fba0",
+    "owner": "0x2cf3724b3b0d2c48e0de7bdd115d384c280c3c8c",
+    "deposit_detected": true,
+    "total_deposited": 68.81,
+    "total_withdrawn": 0,
+    "net_deposits": 68.81,
+    "initial_usd": 68.81,
+    "deposits": [
+      {
+        "type": "ETH",
+        "amount": 0.006993558619428438,
+        "usd": 15.04,
+        "from": "0x6f16901037da7b1e086d4c579e076b39930e001c",
+        "block": 42103442,
+        "timestamp": "2026-02-13T15:23:51.000Z"
+      },
+      {
+        "type": "ETH",
+        "amount": 0.025,
+        "usd": 53.77,
+        "from": "0x91cac128c0cfc76a2992cc0373e60b3841de736f",
+        "block": 42103474,
+        "timestamp": "2026-02-13T15:24:55.000Z"
+      }
+    ],
+    "withdrawals": [],
+    "airdrops": [],
+    "deposit_breakdown": [
+      "ETH: 0.006994 ($15.04)",
+      "ETH: 0.025000 ($53.77)"
+    ],
+    "withdrawal_breakdown": [],
+    "first_swap_block": 42103605,
+    "id": 10,
+    "tx_count": 37
+  },
+  {
+    "safe": "0xadcf7abebae713fbf8eb3db0226aee9b426dbf2f",
+    "owner": "0x739a347ae76da464ac87cd147e5cfdfc4af15906",
+    "deposit_detected": true,
+    "total_deposited": 5.29,
+    "total_withdrawn": 0,
+    "net_deposits": 5.29,
+    "initial_usd": 5.29,
+    "deposits": [
+      {
+        "type": "ETH",
+        "amount": 0.00246,
+        "usd": 5.29,
+        "from": "0x9c3c110780992c1ac74bdf51cbf13119af432624",
+        "block": 42122935,
+        "timestamp": "2026-02-14T02:13:37.000Z"
+      }
+    ],
+    "withdrawals": [],
+    "airdrops": [],
+    "deposit_breakdown": [
+      "ETH: 0.002460 ($5.29)"
+    ],
+    "withdrawal_breakdown": [],
+    "first_swap_block": 42123458,
+    "id": 11,
+    "tx_count": 15
+  },
+  {
+    "safe": "0xefc0bfc3a4977bd5113a254a4f41891d5b222237",
+    "owner": "0xd88a842be5fa005c7dd61c9ec0042304780a1a63",
+    "deposit_detected": true,
+    "total_deposited": 5.23,
+    "total_withdrawn": 0,
+    "net_deposits": 5.23,
+    "initial_usd": 5.23,
+    "deposits": [
+      {
+        "type": "ETH",
+        "amount": 0.0015,
+        "usd": 3.23,
+        "from": "0xbb70129e065b65d38309e0d1be21e02cb9a115dc",
+        "block": 42147233,
+        "timestamp": "2026-02-14T15:43:33.000Z"
+      },
+      {
+        "type": "USDC",
+        "token_address": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+        "amount": 2.0,
+        "usd": 2.0,
+        "from": "0xbb70129e065b65d38309e0d1be21e02cb9a115dc",
+        "block": 42503334,
+        "timestamp": "2026-02-22T21:33:35.000Z"
+      }
+    ],
+    "withdrawals": [],
+    "airdrops": [],
+    "deposit_breakdown": [
+      "ETH: 0.001500 ($3.23)",
+      "USDC: 2.000000 ($2.00)"
+    ],
+    "withdrawal_breakdown": [],
+    "first_swap_block": 42147405,
+    "id": 12,
+    "tx_count": 13
+  },
+  {
+    "safe": "0x075567889dbe2ad42bd53eff8839b671a03db964",
+    "owner": "0x8457c9c8f1e88078062cffbdbbce0a470276d702",
+    "deposit_detected": true,
+    "total_deposited": 9.35,
+    "total_withdrawn": 0,
+    "net_deposits": 9.35,
+    "initial_usd": 9.35,
+    "deposits": [
+      {
+        "type": "USDC",
+        "token_address": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+        "amount": 9.35125,
+        "usd": 9.35,
+        "from": "0xaab853f1dabd2c247a468e3ce808cddc1da238b4",
+        "block": 42227674,
+        "timestamp": "2026-02-16T12:24:55.000Z"
+      }
+    ],
+    "withdrawals": [],
+    "airdrops": [],
+    "deposit_breakdown": [
+      "USDC: 9.351250 ($9.35)"
+    ],
+    "withdrawal_breakdown": [],
+    "first_swap_block": 42663684,
+    "id": 13,
+    "tx_count": 10
+  },
+  {
+    "safe": "0xb6c89257938fdd8af58c4142efb29969f2fa57da",
+    "owner": "0x40bd61676fd2aa444e7f81d21c9b4c28d6b84dd1",
+    "deposit_detected": true,
+    "total_deposited": 10.75,
+    "total_withdrawn": 10.75,
+    "net_deposits": 0.0,
+    "initial_usd": 0.0,
+    "deposits": [
+      {
+        "type": "ETH",
+        "amount": 0.005,
+        "usd": 10.75,
+        "from": "0x40bd61676fd2aa444e7f81d21c9b4c28d6b84dd1",
+        "block": 42146244,
+        "timestamp": "2026-02-14T15:10:35.000Z"
+      }
+    ],
+    "withdrawals": [
+      {
+        "type": "ETH",
+        "amount": 0.005,
+        "usd": 10.75,
+        "to": "0x68035fbc9c47acc89140705806e2c183f35b3a5a",
+        "block": 42146484,
+        "timestamp": "2026-02-14T15:18:35.000Z"
+      }
+    ],
+    "airdrops": [],
+    "deposit_breakdown": [
+      "ETH: 0.005000 ($10.75)"
+    ],
+    "withdrawal_breakdown": [
+      "ETH: 0.005000 ($10.75)"
+    ],
+    "first_swap_block": null,
+    "id": 14,
+    "tx_count": 5
+  },
+  {
+    "safe": "0x3fc1c2890d23276a981dfe4e823213de35932455",
+    "owner": "0x8f2ad5acecb24ad973cb9501acc58915f51a2f39",
+    "deposit_detected": true,
+    "total_deposited": 275.16,
+    "total_withdrawn": 146.2,
+    "net_deposits": 128.96,
+    "initial_usd": 128.96,
+    "deposits": [
+      {
+        "type": "ETH",
+        "amount": 0.00483681785753153,
+        "usd": 10.4,
+        "from": "0x8f2ad5acecb24ad973cb9501acc58915f51a2f39",
+        "block": 42148491,
+        "timestamp": "2026-02-14T16:25:29.000Z"
+      },
+      {
+        "type": "ETH",
+        "amount": 0.0482217,
+        "usd": 103.71,
+        "from": "0xb4807865a786e9e9e26e6a9610f2078e7fc507fb",
+        "block": 42148838,
+        "timestamp": "2026-02-14T16:37:03.000Z"
+      },
+      {
+        "type": "ETH",
+        "amount": 0.04978505,
+        "usd": 107.07,
+        "from": "0x1985ea6e9c68e1c272d8209f3b478ac2fdb25c87",
+        "block": 42189275,
+        "timestamp": "2026-02-15T15:04:57.000Z"
+      },
+      {
+        "type": "ETH",
+        "amount": 0.02509839,
+        "usd": 53.98,
+        "from": "0x40ebc1ac8d4fedd2e144b75fe9c0420be82750c6",
+        "block": 42282126,
+        "timestamp": "2026-02-17T18:39:59.000Z"
+      }
+    ],
+    "withdrawals": [
+      {
+        "type": "ETH",
+        "amount": 0.005,
+        "usd": 10.75,
+        "to": "0x68035fbc9c47acc89140705806e2c183f35b3a5a",
+        "block": 42149952,
+        "timestamp": "2026-02-14T17:14:11.000Z"
+      },
+      {
+        "type": "ETH",
+        "amount": 0.005,
+        "usd": 10.75,
+        "to": "0x68035fbc9c47acc89140705806e2c183f35b3a5a",
+        "block": 42165430,
+        "timestamp": "2026-02-15T01:50:07.000Z"
+      },
+      {
+        "type": "ETH",
+        "amount": 0.003,
+        "usd": 6.45,
+        "to": "0x37e745bf9ec3348e56ccc4c4fbb37393bac4acb1",
+        "block": 42165634,
+        "timestamp": "2026-02-15T01:56:55.000Z"
+      },
+      {
+        "type": "ETH",
+        "amount": 0.005,
+        "usd": 10.75,
+        "to": "0x68035fbc9c47acc89140705806e2c183f35b3a5a",
+        "block": 42170134,
+        "timestamp": "2026-02-15T04:26:55.000Z"
+      },
+      {
+        "type": "ETH",
+        "amount": 0.005,
+        "usd": 10.75,
+        "to": "0x68035fbc9c47acc89140705806e2c183f35b3a5a",
+        "block": 42183789,
+        "timestamp": "2026-02-15T12:02:05.000Z"
+      },
+      {
+        "type": "ETH",
+        "amount": 0.005,
+        "usd": 10.75,
+        "to": "0x68035fbc9c47acc89140705806e2c183f35b3a5a",
+        "block": 42186170,
+        "timestamp": "2026-02-15T13:21:27.000Z"
+      },
+      {
+        "type": "ETH",
+        "amount": 0.005,
+        "usd": 10.75,
+        "to": "0x68035fbc9c47acc89140705806e2c183f35b3a5a",
+        "block": 42186364,
+        "timestamp": "2026-02-15T13:27:55.000Z"
+      },
+      {
+        "type": "ETH",
+        "amount": 0.005,
+        "usd": 10.75,
+        "to": "0x68035fbc9c47acc89140705806e2c183f35b3a5a",
+        "block": 42187514,
+        "timestamp": "2026-02-15T14:06:15.000Z"
+      },
+      {
+        "type": "ETH",
+        "amount": 0.005,
+        "usd": 10.75,
+        "to": "0x68035fbc9c47acc89140705806e2c183f35b3a5a",
+        "block": 42187998,
+        "timestamp": "2026-02-15T14:22:23.000Z"
+      },
+      {
+        "type": "ETH",
+        "amount": 0.005,
+        "usd": 10.75,
+        "to": "0x68035fbc9c47acc89140705806e2c183f35b3a5a",
+        "block": 42189174,
+        "timestamp": "2026-02-15T15:01:35.000Z"
+      },
+      {
+        "type": "ETH",
+        "amount": 0.005,
+        "usd": 10.75,
+        "to": "0x68035fbc9c47acc89140705806e2c183f35b3a5a",
+        "block": 42189292,
+        "timestamp": "2026-02-15T15:05:31.000Z"
+      },
+      {
+        "type": "ETH",
+        "amount": 0.005,
+        "usd": 10.75,
+        "to": "0x68035fbc9c47acc89140705806e2c183f35b3a5a",
+        "block": 42270410,
+        "timestamp": "2026-02-17T12:09:27.000Z"
+      },
+      {
+        "type": "ETH",
+        "amount": 0.005,
+        "usd": 10.75,
+        "to": "0x2ea0010c18fa7239cad047eb2596f8d8b7cf2988",
+        "block": 42282543,
+        "timestamp": "2026-02-17T18:53:53.000Z"
+      },
+      {
+        "type": "ETH",
+        "amount": 0.005,
+        "usd": 10.75,
+        "to": "0x2ea0010c18fa7239cad047eb2596f8d8b7cf2988",
+        "block": 42282572,
+        "timestamp": "2026-02-17T18:54:51.000Z"
+      }
+    ],
+    "airdrops": [],
+    "deposit_breakdown": [
+      "ETH: 0.004837 ($10.40)",
+      "ETH: 0.048222 ($103.71)",
+      "ETH: 0.049785 ($107.07)",
+      "ETH: 0.025098 ($53.98)"
+    ],
+    "withdrawal_breakdown": [
+      "ETH: 0.005000 ($10.75)",
+      "ETH: 0.005000 ($10.75)",
+      "ETH: 0.003000 ($6.45)",
+      "ETH: 0.005000 ($10.75)",
+      "ETH: 0.005000 ($10.75)",
+      "ETH: 0.005000 ($10.75)",
+      "ETH: 0.005000 ($10.75)",
+      "ETH: 0.005000 ($10.75)",
+      "ETH: 0.005000 ($10.75)",
+      "ETH: 0.005000 ($10.75)",
+      "ETH: 0.005000 ($10.75)",
+      "ETH: 0.005000 ($10.75)",
+      "ETH: 0.005000 ($10.75)",
+      "ETH: 0.005000 ($10.75)"
+    ],
+    "first_swap_block": 42150045,
+    "id": 15,
+    "tx_count": 102
+  },
+  {
+    "safe": "0x476a12e7deacb917b057890fc4ff6c334fdb0d1f",
+    "owner": "0x3f2be551f36c4487cc7926b2da2094f0809fb6dc",
+    "deposit_detected": true,
+    "total_deposited": 205.68,
+    "total_withdrawn": 64.52,
+    "net_deposits": 141.16,
+    "initial_usd": 141.16,
+    "deposits": [
+      {
+        "type": "ETH",
+        "amount": 0.012,
+        "usd": 25.81,
+        "from": "0x3f2be551f36c4487cc7926b2da2094f0809fb6dc",
+        "block": 42152326,
+        "timestamp": "2026-02-14T18:33:19.000Z"
+      },
+      {
+        "type": "USDC",
+        "token_address": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+        "amount": 36.003662,
+        "usd": 36.0,
+        "from": "0xf70da97812cb96acdf810712aa562db8dfa3dbef",
+        "block": 42292402,
+        "timestamp": "2026-02-18T00:22:31.000Z"
+      },
+      {
+        "type": "USDC",
+        "token_address": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+        "amount": 143.870634,
+        "usd": 143.87,
+        "from": "0xf70da97812cb96acdf810712aa562db8dfa3dbef",
+        "block": 42292439,
+        "timestamp": "2026-02-18T00:23:45.000Z"
+      }
+    ],
+    "withdrawals": [
+      {
+        "type": "WETH",
+        "token_address": "0x4200000000000000000000000000000000000006",
+        "amount": 0.02,
+        "usd": 43.01,
+        "to": "0x3f2be551f36c4487cc7926b2da2094f0809fb6dc",
+        "block": 42668458,
+        "timestamp": "2026-02-26T17:17:43.000Z"
+      },
+      {
+        "type": "WETH",
+        "token_address": "0x4200000000000000000000000000000000000006",
+        "amount": 0.01,
+        "usd": 21.51,
+        "to": "0x3f2be551f36c4487cc7926b2da2094f0809fb6dc",
+        "block": 42668724,
+        "timestamp": "2026-02-26T17:26:35.000Z"
+      }
+    ],
+    "airdrops": [],
+    "deposit_breakdown": [
+      "ETH: 0.012000 ($25.81)",
+      "USDC: 36.003662 ($36.00)",
+      "USDC: 143.870634 ($143.87)"
+    ],
+    "withdrawal_breakdown": [
+      "WETH: 0.020000 ($43.01)",
+      "WETH: 0.010000 ($21.51)"
+    ],
+    "first_swap_block": 42152440,
+    "id": 16,
+    "tx_count": 31
+  },
+  {
+    "safe": "0x65b153bbc657d190af5da1ea84a25ec8b9ee3ae1",
+    "owner": "0xb5cbb92fdbe1a8975049ed8f18b9fdb86ef9813a",
+    "deposit_detected": true,
+    "total_deposited": 106.34,
+    "total_withdrawn": 50.63,
+    "net_deposits": 55.71,
+    "initial_usd": 55.71,
+    "deposits": [
+      {
+        "type": "ETH",
+        "amount": 0.0059,
+        "usd": 12.69,
+        "from": "0x9c72e66cc0959ea8ac15e8e5cc54527cf1bee497",
+        "block": 42163297,
+        "timestamp": "2026-02-15T00:39:01.000Z"
+      },
+      {
+        "type": "ETH",
+        "amount": 0.003542016813016282,
+        "usd": 7.62,
+        "from": "0x4200000000000000000000000000000000000006",
+        "block": 42283350,
+        "timestamp": "2026-02-17T19:20:47.000Z"
+      },
+      {
+        "type": "ETH",
+        "amount": 0.01,
+        "usd": 21.51,
+        "from": "0xb5cbb92fdbe1a8975049ed8f18b9fdb86ef9813a",
+        "block": 42283534,
+        "timestamp": "2026-02-17T19:26:55.000Z"
+      },
+      {
+        "type": "ETH",
+        "amount": 0.03,
+        "usd": 64.52,
+        "from": "0xb5cbb92fdbe1a8975049ed8f18b9fdb86ef9813a",
+        "block": 42283547,
+        "timestamp": "2026-02-17T19:27:21.000Z"
+      }
+    ],
+    "withdrawals": [
+      {
+        "type": "WETH",
+        "token_address": "0x4200000000000000000000000000000000000006",
+        "amount": 0.003542016813016282,
+        "usd": 7.62,
+        "to": "0x0000000000000000000000000000000000000000",
+        "block": 42283350,
+        "timestamp": "2026-02-17T19:20:47.000Z"
+      },
+      {
+        "type": "ETH",
+        "amount": 0.02,
+        "usd": 43.01,
+        "to": "0xb5cbb92fdbe1a8975049ed8f18b9fdb86ef9813a",
+        "block": 42283865,
+        "timestamp": "2026-02-17T19:37:57.000Z"
+      }
+    ],
+    "airdrops": [],
+    "deposit_breakdown": [
+      "ETH: 0.005900 ($12.69)",
+      "ETH: 0.003542 ($7.62)",
+      "ETH: 0.010000 ($21.51)",
+      "ETH: 0.030000 ($64.52)"
+    ],
+    "withdrawal_breakdown": [
+      "WETH: 0.003542 ($7.62)",
+      "ETH: 0.020000 ($43.01)"
+    ],
+    "first_swap_block": 42164063,
+    "id": 17,
+    "tx_count": 18
+  },
+  {
+    "safe": "0xcbcae5163fba90d31bebdd6373de85850c7819e6",
+    "owner": "0x9c0ec2deb9a86c99cc6feaaeb397d144288edb34",
+    "deposit_detected": true,
+    "total_deposited": 100.0,
+    "total_withdrawn": 0,
+    "net_deposits": 100.0,
+    "initial_usd": 100.0,
+    "deposits": [
+      {
+        "type": "USDC",
+        "token_address": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+        "amount": 100.0,
+        "usd": 100.0,
+        "from": "0x55a33b6ac11b6a753e5bcdc798a7fdfc6f649e64",
+        "block": 42192715,
+        "timestamp": "2026-02-15T16:59:37.000Z"
+      }
+    ],
+    "withdrawals": [],
+    "airdrops": [],
+    "deposit_breakdown": [
+      "USDC: 100.000000 ($100.00)"
+    ],
+    "withdrawal_breakdown": [],
+    "first_swap_block": 42192887,
+    "id": 18,
+    "tx_count": 21
+  },
+  {
+    "safe": "0xb1f2ec570db54b8f4c95112cd61eaed8a8224bba",
+    "owner": "0x1f70152c0067595baa908b9bf27b8208b79767e9",
+    "deposit_detected": true,
+    "total_deposited": 37.85,
+    "total_withdrawn": 29.25,
+    "net_deposits": 8.6,
+    "initial_usd": 8.6,
+    "deposits": [
+      {
+        "type": "ETH",
+        "amount": 0.0099,
+        "usd": 21.29,
+        "from": "0x2dc24ee5fa1a04f29021bd5ba5bbcfefaae10074",
+        "block": 42188704,
+        "timestamp": "2026-02-15T14:45:55.000Z"
+      },
+      {
+        "type": "ETH",
+        "amount": 0.001,
+        "usd": 2.15,
+        "from": "0x4200000000000000000000000000000000000006",
+        "block": 42540056,
+        "timestamp": "2026-02-23T17:57:39.000Z"
+      },
+      {
+        "type": "ETH",
+        "amount": 0.0067,
+        "usd": 14.41,
+        "from": "0x3e50169eacd7a8b7671611d836750212f45c1874",
+        "block": 42540411,
+        "timestamp": "2026-02-23T18:09:29.000Z"
+      }
+    ],
+    "withdrawals": [
+      {
+        "type": "WETH",
+        "token_address": "0x4200000000000000000000000000000000000006",
+        "amount": 0.001,
+        "usd": 2.15,
+        "to": "0x0000000000000000000000000000000000000000",
+        "block": 42540056,
+        "timestamp": "2026-02-23T17:57:39.000Z"
+      },
+      {
+        "type": "ETH",
+        "amount": 0.006848432400378823,
+        "usd": 14.73,
+        "to": "0xb3866d394c21489819d8b131b65542739d95e7c0",
+        "block": 42874934,
+        "timestamp": "2026-03-03T12:00:15.000Z"
+      },
+      {
+        "type": "BID",
+        "token_address": "0xa1832f7f4e534ae557f9b5ab76de54b1873e498b",
+        "amount": 713.6209892465253,
+        "usd": 6.62,
+        "to": "0xb3866d394c21489819d8b131b65542739d95e7c0",
+        "block": 42874934,
+        "timestamp": "2026-03-03T12:00:15.000Z"
+      },
+      {
+        "type": "USDC",
+        "token_address": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+        "amount": 5.747215,
+        "usd": 5.75,
+        "to": "0xb3866d394c21489819d8b131b65542739d95e7c0",
+        "block": 42874934,
+        "timestamp": "2026-03-03T12:00:15.000Z"
+      }
+    ],
+    "airdrops": [],
+    "deposit_breakdown": [
+      "ETH: 0.009900 ($21.29)",
+      "ETH: 0.001000 ($2.15)",
+      "ETH: 0.006700 ($14.41)"
+    ],
+    "withdrawal_breakdown": [
+      "WETH: 0.001000 ($2.15)",
+      "ETH: 0.006848 ($14.73)",
+      "BID: 713.620989 ($6.62)",
+      "USDC: 5.747215 ($5.75)"
+    ],
+    "first_swap_block": 42540553,
+    "id": 19,
+    "tx_count": 39
+  },
+  {
+    "safe": "0xcfb292b5676d9630529c41db999ed3a336ab9a80",
+    "owner": "0x8f2ad5acecb24ad973cb9501acc58915f51a2f39",
+    "deposit_detected": true,
+    "total_deposited": 11478.83,
+    "total_withdrawn": 8110.15,
+    "net_deposits": 3368.68,
+    "initial_usd": 3368.68,
+    "deposits": [
+      {
+        "type": "USDC",
+        "token_address": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+        "amount": 100.0,
+        "usd": 100.0,
+        "from": "0x958ccf4f4729069495cf6d0c099132c55462afd2",
+        "block": 42220508,
+        "timestamp": "2026-02-16T08:26:03.000Z"
+      },
+      {
+        "type": "ETH",
+        "amount": 0.001,
+        "usd": 2.15,
+        "from": "0x913a68142335363a494b44544022b1981eec1d04",
+        "block": 42231819,
+        "timestamp": "2026-02-16T14:43:05.000Z"
+      },
+      {
+        "type": "USDC",
+        "token_address": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+        "amount": 6000.0,
+        "usd": 6000.0,
+        "from": "0x958ccf4f4729069495cf6d0c099132c55462afd2",
+        "block": 42536472,
+        "timestamp": "2026-02-23T15:58:11.000Z"
+      },
+      {
+        "type": "ETH",
+        "amount": 2.5,
+        "usd": 5376.68,
+        "from": "0x958ccf4f4729069495cf6d0c099132c55462afd2",
+        "block": 42536505,
+        "timestamp": "2026-02-23T15:59:17.000Z"
+      }
+    ],
+    "withdrawals": [
+      {
+        "type": "BID",
+        "token_address": "0xa1832f7f4e534ae557f9b5ab76de54b1873e498b",
+        "amount": 873774.268699405,
+        "usd": 8110.15,
+        "to": "0x4d00a0e5eef8e6c7a8964c3f453ad55890b23810",
+        "block": 42617977,
+        "timestamp": "2026-02-25T13:15:01.000Z"
+      }
+    ],
+    "airdrops": [
+      {
+        "type": "CLAWLETT",
+        "token_address": "0xc34803d003f582b122b9575c14007373ad8c9383",
+        "amount": 5284266.230018733,
+        "usd": 0,
+        "from": "0x5fe9773685db34c74486de6f6eea647ce9d504a8",
+        "block": 42622810,
+        "timestamp": "2026-02-25T15:56:07.000Z"
+      }
+    ],
+    "deposit_breakdown": [
+      "USDC: 100.000000 ($100.00)",
+      "ETH: 0.001000 ($2.15)",
+      "USDC: 6000.000000 ($6000.00)",
+      "ETH: 2.500000 ($5376.68)"
+    ],
+    "withdrawal_breakdown": [
+      "BID: 873774.268699 ($8110.15)"
+    ],
+    "first_swap_block": 42222252,
+    "id": 20,
+    "tx_count": 45
+  },
+  {
+    "safe": "0x8f4e3773b74627f7ade559b56d81c0f541484eeb",
+    "owner": "0x9598d48e97841431b82a807fca72c7a04c769d6a",
+    "deposit_detected": false,
+    "total_deposited": 0,
+    "total_withdrawn": 0,
+    "net_deposits": 0,
+    "initial_usd": 0,
+    "deposits": [],
+    "withdrawals": [],
+    "airdrops": [],
+    "deposit_breakdown": [],
+    "withdrawal_breakdown": [],
+    "first_swap_block": null,
+    "id": 21,
+    "tx_count": 3
+  },
+  {
+    "safe": "0x0bf7fd2f7bd4ce3c755408b9a75991e757ecff2e",
+    "owner": "0x3cd8160f6f0f339abd75abfd4f1f9e028b00cc28",
+    "deposit_detected": true,
+    "total_deposited": 5801.09,
+    "total_withdrawn": 278.45,
+    "net_deposits": 5522.64,
+    "initial_usd": 5522.64,
+    "deposits": [
+      {
+        "type": "BID",
+        "token_address": "0xa1832f7f4e534ae557f9b5ab76de54b1873e498b",
+        "amount": 1000.0,
+        "usd": 9.28,
+        "from": "0xd34ad27feed35e73909d74e14dfaa95a92665e41",
+        "block": 42273242,
+        "timestamp": "2026-02-17T13:43:51.000Z"
+      },
+      {
+        "type": "BID",
+        "token_address": "0xa1832f7f4e534ae557f9b5ab76de54b1873e498b",
+        "amount": 624000.0,
+        "usd": 5791.81,
+        "from": "0xd34ad27feed35e73909d74e14dfaa95a92665e41",
+        "block": 42273422,
+        "timestamp": "2026-02-17T13:49:51.000Z"
+      }
+    ],
+    "withdrawals": [
+      {
+        "type": "BID",
+        "token_address": "0xa1832f7f4e534ae557f9b5ab76de54b1873e498b",
+        "amount": 30000.0,
+        "usd": 278.45,
+        "to": "0x1808c9e7456d0af24dda3e7d32d12acbfe3f8516",
+        "block": 42285721,
+        "timestamp": "2026-02-17T20:39:49.000Z"
+      }
+    ],
+    "airdrops": [],
+    "deposit_breakdown": [
+      "BID: 1000.000000 ($9.28)",
+      "BID: 624000.000000 ($5791.81)"
+    ],
+    "withdrawal_breakdown": [
+      "BID: 30000.000000 ($278.45)"
+    ],
+    "first_swap_block": null,
+    "id": 22,
+    "tx_count": 7
+  },
+  {
+    "safe": "0x31cdfe2e42fdc9376cef4545a04b3963c31e3cc7",
+    "owner": "0x8131fbc2aaef8bce79c1e780a03f5824db1288c0",
+    "deposit_detected": false,
+    "total_deposited": 0,
+    "total_withdrawn": 0,
+    "net_deposits": 0,
+    "initial_usd": 0,
+    "deposits": [],
+    "withdrawals": [],
+    "airdrops": [],
+    "deposit_breakdown": [],
+    "withdrawal_breakdown": [],
+    "first_swap_block": null,
+    "id": 23,
+    "tx_count": 3
+  },
+  {
+    "safe": "0x0a954b0b1718ca474584b62ba633b93980d87d10",
+    "owner": "0x6b0e49db4b39e884e819712a5580af1d3d35aa0f",
+    "deposit_detected": false,
+    "total_deposited": 0,
+    "total_withdrawn": 0,
+    "net_deposits": 0,
+    "initial_usd": 0,
+    "deposits": [],
+    "withdrawals": [],
+    "airdrops": [],
+    "deposit_breakdown": [],
+    "withdrawal_breakdown": [],
+    "first_swap_block": null,
+    "id": 24,
+    "tx_count": 3
+  },
+  {
+    "safe": "0xcadddd607a9a0f3519715182af74273aeb2f3f7c",
+    "owner": "0xa42c095da2e4f7051ca8970a4933bd01c7b1ae44",
+    "deposit_detected": true,
+    "total_deposited": 3.23,
+    "total_withdrawn": 0,
+    "net_deposits": 3.23,
+    "initial_usd": 3.23,
+    "deposits": [
+      {
+        "type": "ETH",
+        "amount": 0.0005,
+        "usd": 1.08,
+        "from": "0xa42c095da2e4f7051ca8970a4933bd01c7b1ae44",
+        "block": 42279476,
+        "timestamp": "2026-02-17T17:11:39.000Z"
+      },
+      {
+        "type": "ETH",
+        "amount": 0.001,
+        "usd": 2.15,
+        "from": "0xd24cbefd00375557a7c4138c78f0ed09d4005b3c",
+        "block": 42279481,
+        "timestamp": "2026-02-17T17:11:49.000Z"
+      }
+    ],
+    "withdrawals": [],
+    "airdrops": [],
+    "deposit_breakdown": [
+      "ETH: 0.000500 ($1.08)",
+      "ETH: 0.001000 ($2.15)"
+    ],
+    "withdrawal_breakdown": [],
+    "first_swap_block": null,
+    "id": 25,
+    "tx_count": 6
+  },
+  {
+    "safe": "0x9b432c20c84227b01d71f13de6ea3e4479018382",
+    "owner": "0x51c41ac5ecf6609f3c339ba6a4d80d2d68fa7f58",
+    "deposit_detected": true,
+    "total_deposited": 24.0,
+    "total_withdrawn": 10.75,
+    "net_deposits": 13.25,
+    "initial_usd": 13.25,
+    "deposits": [
+      {
+        "type": "ETH",
+        "amount": 0.011158889835553867,
+        "usd": 24.0,
+        "from": "0x8b97f5d7a73408dab4176c5ed04f91b7e3484fa3",
+        "block": 42283449,
+        "timestamp": "2026-02-17T19:24:05.000Z"
+      }
+    ],
+    "withdrawals": [
+      {
+        "type": "ETH",
+        "amount": 0.005,
+        "usd": 10.75,
+        "to": "0x2ea0010c18fa7239cad047eb2596f8d8b7cf2988",
+        "block": 42284508,
+        "timestamp": "2026-02-17T19:59:23.000Z"
+      }
+    ],
+    "airdrops": [],
+    "deposit_breakdown": [
+      "ETH: 0.011159 ($24.00)"
+    ],
+    "withdrawal_breakdown": [
+      "ETH: 0.005000 ($10.75)"
+    ],
+    "first_swap_block": null,
+    "id": 26,
+    "tx_count": 5
+  },
+  {
+    "safe": "0x0d9c01ee5a4ad913d07dc961b9f744767941b1dd",
+    "owner": "0x376658edc69684fd1b0781d07e218f0b92ad2b64",
+    "deposit_detected": false,
+    "total_deposited": 0,
+    "total_withdrawn": 0,
+    "net_deposits": 0,
+    "initial_usd": 0,
+    "deposits": [],
+    "withdrawals": [],
+    "airdrops": [],
+    "deposit_breakdown": [],
+    "withdrawal_breakdown": [],
+    "first_swap_block": null,
+    "id": 27,
+    "tx_count": 5
+  },
+  {
+    "safe": "0xcf35c4ae6a536f76252b9590800db3909e7f2682",
+    "owner": "0x8448d5b6336f605be78b7ff7735fe483a7255b05",
+    "deposit_detected": true,
+    "total_deposited": 30.47,
+    "total_withdrawn": 10.75,
+    "net_deposits": 19.72,
+    "initial_usd": 19.72,
+    "deposits": [
+      {
+        "type": "ETH",
+        "amount": 0.002,
+        "usd": 4.3,
+        "from": "0x6dcbce46a8b494c885d0e7b6817d2b519df64467",
+        "block": 42284365,
+        "timestamp": "2026-02-17T19:54:37.000Z"
+      },
+      {
+        "type": "ETH",
+        "amount": 0.005998853812240564,
+        "usd": 12.9,
+        "from": "0xb92fe925dc43a0ecde6c8b1a2709c170ec4fff4f",
+        "block": 42284509,
+        "timestamp": "2026-02-17T19:59:25.000Z"
+      },
+      {
+        "type": "ETH",
+        "amount": 0.006170437645990843,
+        "usd": 13.27,
+        "from": "0xb92fe925dc43a0ecde6c8b1a2709c170ec4fff4f",
+        "block": 42284672,
+        "timestamp": "2026-02-17T20:04:51.000Z"
+      }
+    ],
+    "withdrawals": [
+      {
+        "type": "ETH",
+        "amount": 0.005,
+        "usd": 10.75,
+        "to": "0x2ea0010c18fa7239cad047eb2596f8d8b7cf2988",
+        "block": 42284882,
+        "timestamp": "2026-02-17T20:11:51.000Z"
+      }
+    ],
+    "airdrops": [],
+    "deposit_breakdown": [
+      "ETH: 0.002000 ($4.30)",
+      "ETH: 0.005999 ($12.90)",
+      "ETH: 0.006170 ($13.27)"
+    ],
+    "withdrawal_breakdown": [
+      "ETH: 0.005000 ($10.75)"
+    ],
+    "first_swap_block": null,
+    "id": 28,
+    "tx_count": 9
+  },
+  {
+    "safe": "0x576a119ee653f464613c49eb400b9dbe411f46f4",
+    "owner": "0x6ab1ac5c79193579ad7365b1f852c12ef45bd921",
+    "deposit_detected": true,
+    "total_deposited": 11.83,
+    "total_withdrawn": 10.75,
+    "net_deposits": 1.08,
+    "initial_usd": 1.08,
+    "deposits": [
+      {
+        "type": "ETH",
+        "amount": 0.0055,
+        "usd": 11.83,
+        "from": "0x6ab1ac5c79193579ad7365b1f852c12ef45bd921",
+        "block": 42284666,
+        "timestamp": "2026-02-17T20:04:39.000Z"
+      }
+    ],
+    "withdrawals": [
+      {
+        "type": "ETH",
+        "amount": 0.005,
+        "usd": 10.75,
+        "to": "0x2ea0010c18fa7239cad047eb2596f8d8b7cf2988",
+        "block": 42284814,
+        "timestamp": "2026-02-17T20:09:35.000Z"
+      }
+    ],
+    "airdrops": [],
+    "deposit_breakdown": [
+      "ETH: 0.005500 ($11.83)"
+    ],
+    "withdrawal_breakdown": [
+      "ETH: 0.005000 ($10.75)"
+    ],
+    "first_swap_block": null,
+    "id": 29,
+    "tx_count": 7
+  },
+  {
+    "safe": "0x4aba1e4108dc6390c60518a786df2ec574c4452d",
+    "owner": "0x7be01a0983b7c8f4c58a127f882993d292229216",
+    "deposit_detected": true,
+    "total_deposited": 10.75,
+    "total_withdrawn": 0,
+    "net_deposits": 10.75,
+    "initial_usd": 10.75,
+    "deposits": [
+      {
+        "type": "ETH",
+        "amount": 0.005,
+        "usd": 10.75,
+        "from": "0x7be01a0983b7c8f4c58a127f882993d292229216",
+        "block": 42284675,
+        "timestamp": "2026-02-17T20:04:57.000Z"
+      }
+    ],
+    "withdrawals": [],
+    "airdrops": [],
+    "deposit_breakdown": [
+      "ETH: 0.005000 ($10.75)"
+    ],
+    "withdrawal_breakdown": [],
+    "first_swap_block": null,
+    "id": 30,
+    "tx_count": 4
+  },
+  {
+    "safe": "0x1808c9e7456d0af24dda3e7d32d12acbfe3f8516",
+    "owner": "0x3cd8160f6f0f339abd75abfd4f1f9e028b00cc28",
+    "deposit_detected": true,
+    "total_deposited": 278.45,
+    "total_withdrawn": 0,
+    "net_deposits": 278.45,
+    "initial_usd": 278.45,
+    "deposits": [
+      {
+        "type": "BID",
+        "token_address": "0xa1832f7f4e534ae557f9b5ab76de54b1873e498b",
+        "amount": 30000.0,
+        "usd": 278.45,
+        "from": "0x0bf7fd2f7bd4ce3c755408b9a75991e757ecff2e",
+        "block": 42285721,
+        "timestamp": "2026-02-17T20:39:49.000Z"
+      }
+    ],
+    "withdrawals": [],
+    "airdrops": [],
+    "deposit_breakdown": [
+      "BID: 30000.000000 ($278.45)"
+    ],
+    "withdrawal_breakdown": [],
+    "first_swap_block": 42286718,
+    "id": 31,
+    "tx_count": 35
+  },
+  {
+    "safe": "0x2d8da5812982c848438761324ec61df5caf9ed35",
+    "owner": "0x5c1b1af60c9c37b9978d1d8045a24faa14b7eebb",
+    "deposit_detected": true,
+    "total_deposited": 4.3,
+    "total_withdrawn": 4.3,
+    "net_deposits": 0.0,
+    "initial_usd": 0.0,
+    "deposits": [
+      {
+        "type": "ETH",
+        "amount": 0.002,
+        "usd": 4.3,
+        "from": "0x77e43bddfd70a2a277d8ca72b52b7d84c3ea8999",
+        "block": 42286075,
+        "timestamp": "2026-02-17T20:51:37.000Z"
+      }
+    ],
+    "withdrawals": [
+      {
+        "type": "ETH",
+        "amount": 0.002,
+        "usd": 4.3,
+        "to": "0x5c1b1af60c9c37b9978d1d8045a24faa14b7eebb",
+        "block": 42286569,
+        "timestamp": "2026-02-17T21:08:05.000Z"
+      }
+    ],
+    "airdrops": [],
+    "deposit_breakdown": [
+      "ETH: 0.002000 ($4.30)"
+    ],
+    "withdrawal_breakdown": [
+      "ETH: 0.002000 ($4.30)"
+    ],
+    "first_swap_block": null,
+    "id": 32,
+    "tx_count": 5
+  },
+  {
+    "safe": "0xa2687ca968e96958d2f774cc1900915e5a2ffc64",
+    "owner": "0xff795926baae15e9036eaf087b71712a5bb7de86",
+    "deposit_detected": true,
+    "total_deposited": 12.9,
+    "total_withdrawn": 10.75,
+    "net_deposits": 2.15,
+    "initial_usd": 2.15,
+    "deposits": [
+      {
+        "type": "ETH",
+        "amount": 0.006,
+        "usd": 12.9,
+        "from": "0x02e52755fb1813aa253e264ece2c910fdccc25a8",
+        "block": 42288314,
+        "timestamp": "2026-02-17T22:06:15.000Z"
+      }
+    ],
+    "withdrawals": [
+      {
+        "type": "ETH",
+        "amount": 0.005,
+        "usd": 10.75,
+        "to": "0x2ea0010c18fa7239cad047eb2596f8d8b7cf2988",
+        "block": 42289984,
+        "timestamp": "2026-02-17T23:01:55.000Z"
+      }
+    ],
+    "airdrops": [],
+    "deposit_breakdown": [
+      "ETH: 0.006000 ($12.90)"
+    ],
+    "withdrawal_breakdown": [
+      "ETH: 0.005000 ($10.75)"
+    ],
+    "first_swap_block": null,
+    "id": 33,
+    "tx_count": 5
+  },
+  {
+    "safe": "0xfb994236c4566ccd7e628c6cddc0f060e3ecbe19",
+    "owner": "0x7d3ee8b6033914eaafd72f00449936f8c7ad64eb",
+    "deposit_detected": false,
+    "total_deposited": 0,
+    "total_withdrawn": 0,
+    "net_deposits": 0,
+    "initial_usd": 0,
+    "deposits": [],
+    "withdrawals": [],
+    "airdrops": [],
+    "deposit_breakdown": [],
+    "withdrawal_breakdown": [],
+    "first_swap_block": null,
+    "id": 34,
+    "tx_count": 3
+  },
+  {
+    "safe": "0x37f16a42815622cd351c9c5399c1de28db8ed6f6",
+    "owner": "0x3d58ec47d76ac2b4a3aff0d475b8353fc679a12a",
+    "deposit_detected": true,
+    "total_deposited": 4649.96,
+    "total_withdrawn": 0,
+    "net_deposits": 4649.96,
+    "initial_usd": 4649.96,
+    "deposits": [
+      {
+        "type": "BID",
+        "token_address": "0xa1832f7f4e534ae557f9b5ab76de54b1873e498b",
+        "amount": 979.0,
+        "usd": 9.09,
+        "from": "0x0000000000000000000000000000000000000000",
+        "block": 42304628,
+        "timestamp": "2026-02-18T07:10:03.000Z"
+      },
+      {
+        "type": "BID",
+        "token_address": "0xa1832f7f4e534ae557f9b5ab76de54b1873e498b",
+        "amount": 499999.0,
+        "usd": 4640.87,
+        "from": "0x0000000000000000000000000000000000000000",
+        "block": 42307687,
+        "timestamp": "2026-02-18T08:52:01.000Z"
+      }
+    ],
+    "withdrawals": [],
+    "airdrops": [],
+    "deposit_breakdown": [
+      "BID: 979.000000 ($9.09)",
+      "BID: 499999.000000 ($4640.87)"
+    ],
+    "withdrawal_breakdown": [],
+    "first_swap_block": 42308524,
+    "id": 35,
+    "tx_count": 219
+  },
+  {
+    "safe": "0x3365a8f8150564ddaab74452b71d59927e6e741d",
+    "owner": "0xf922e4a8613d977ff4142da2323b95389a435307",
+    "deposit_detected": true,
+    "total_deposited": 9281.31,
+    "total_withdrawn": 0,
+    "net_deposits": 9281.31,
+    "initial_usd": 9281.31,
+    "deposits": [
+      {
+        "type": "BID",
+        "token_address": "0xa1832f7f4e534ae557f9b5ab76de54b1873e498b",
+        "amount": 999953.0,
+        "usd": 9281.31,
+        "from": "0x0000000000000000000000000000000000000000",
+        "block": 42307818,
+        "timestamp": "2026-02-18T08:56:23.000Z"
+      }
+    ],
+    "withdrawals": [],
+    "airdrops": [],
+    "deposit_breakdown": [
+      "BID: 999953.000000 ($9281.31)"
+    ],
+    "withdrawal_breakdown": [],
+    "first_swap_block": 42309127,
+    "id": 36,
+    "tx_count": 145
+  },
+  {
+    "safe": "0x943a90b09da13cbb633c8640072bbeefca344e2e",
+    "owner": "0xa3e2d2eb23850d5cb46903e2c5fc5f3bcb37e97f",
+    "deposit_detected": false,
+    "total_deposited": 0,
+    "total_withdrawn": 0,
+    "net_deposits": 0,
+    "initial_usd": 0,
+    "deposits": [],
+    "withdrawals": [],
+    "airdrops": [],
+    "deposit_breakdown": [],
+    "withdrawal_breakdown": [],
+    "first_swap_block": null,
+    "id": 37,
+    "tx_count": 4
+  },
+  {
+    "safe": "0x963c6bea9362b6fb343e1d53d82e444456d08e67",
+    "owner": "0xbc03df2d9f44cc552ebbff39860f2cc4fc751d0e",
+    "deposit_detected": false,
+    "total_deposited": 0,
+    "total_withdrawn": 0,
+    "net_deposits": 0,
+    "initial_usd": 0,
+    "deposits": [],
+    "withdrawals": [],
+    "airdrops": [],
+    "deposit_breakdown": [],
+    "withdrawal_breakdown": [],
+    "first_swap_block": null,
+    "id": 39,
+    "tx_count": 3
+  },
+  {
+    "safe": "0x78491c2ef4943a69da78d4da430dbef664cc81a3",
+    "owner": "0x69cef7d8d40eb4baef57ce46f9158827289e2868",
+    "deposit_detected": true,
+    "total_deposited": 8.6,
+    "total_withdrawn": 0,
+    "net_deposits": 8.6,
+    "initial_usd": 8.6,
+    "deposits": [
+      {
+        "type": "ETH",
+        "amount": 0.004,
+        "usd": 8.6,
+        "from": "0xd541edc5ab91723a4de790507810b024ca1e9a1d",
+        "block": 42491581,
+        "timestamp": "2026-02-22T15:01:49.000Z"
+      }
+    ],
+    "withdrawals": [],
+    "airdrops": [],
+    "deposit_breakdown": [
+      "ETH: 0.004000 ($8.60)"
+    ],
+    "withdrawal_breakdown": [],
+    "first_swap_block": 42491802,
+    "id": 40,
+    "tx_count": 90
+  },
+  {
+    "safe": "0x5cfc3981a11a2766a1483314a2f39324cd9fbf92",
+    "owner": "0x09e7fd24951538220b721b1b5a7452b6a4d927be",
+    "deposit_detected": true,
+    "total_deposited": 301.09,
+    "total_withdrawn": 21.5,
+    "net_deposits": 279.59,
+    "initial_usd": 279.59,
+    "deposits": [
+      {
+        "type": "ETH",
+        "amount": 0.01,
+        "usd": 21.51,
+        "from": "0xd3b2ecfe77780bffdfa356b70dc190c914511761",
+        "block": 42553044,
+        "timestamp": "2026-02-24T01:10:35.000Z"
+      },
+      {
+        "type": "ETH",
+        "amount": 0.02,
+        "usd": 43.01,
+        "from": "0x6b406012b188c16abb877b3728d07bc7b5f52efa",
+        "block": 42553697,
+        "timestamp": "2026-02-24T01:32:21.000Z"
+      },
+      {
+        "type": "ETH",
+        "amount": 0.07,
+        "usd": 150.55,
+        "from": "0x6b406012b188c16abb877b3728d07bc7b5f52efa",
+        "block": 42553747,
+        "timestamp": "2026-02-24T01:34:01.000Z"
+      },
+      {
+        "type": "ETH",
+        "amount": 0.02,
+        "usd": 43.01,
+        "from": "0xd3b2ecfe77780bffdfa356b70dc190c914511761",
+        "block": 42553783,
+        "timestamp": "2026-02-24T01:35:13.000Z"
+      },
+      {
+        "type": "ETH",
+        "amount": 0.02,
+        "usd": 43.01,
+        "from": "0xeb4cefb58a7036d4b8b66957165153f734a3db6b",
+        "block": 42741370,
+        "timestamp": "2026-02-28T09:48:07.000Z"
+      }
+    ],
+    "withdrawals": [
+      {
+        "type": "ETH",
+        "amount": 0.005,
+        "usd": 10.75,
+        "to": "0x2ea0010c18fa7239cad047eb2596f8d8b7cf2988",
+        "block": 42554589,
+        "timestamp": "2026-02-24T02:02:05.000Z"
+      },
+      {
+        "type": "ETH",
+        "amount": 0.005,
+        "usd": 10.75,
+        "to": "0x2ea0010c18fa7239cad047eb2596f8d8b7cf2988",
+        "block": 42554764,
+        "timestamp": "2026-02-24T02:07:55.000Z"
+      }
+    ],
+    "airdrops": [],
+    "deposit_breakdown": [
+      "ETH: 0.010000 ($21.51)",
+      "ETH: 0.020000 ($43.01)",
+      "ETH: 0.070000 ($150.55)",
+      "ETH: 0.020000 ($43.01)",
+      "ETH: 0.020000 ($43.01)"
+    ],
+    "withdrawal_breakdown": [
+      "ETH: 0.005000 ($10.75)",
+      "ETH: 0.005000 ($10.75)"
+    ],
+    "first_swap_block": 42553096,
+    "id": 41,
+    "tx_count": 238
+  }
+]
