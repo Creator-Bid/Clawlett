@@ -41,6 +41,8 @@ const CONTRACTS = {
     KyberSwapRouter: '0x6131B5fae19EA4f9D964eAc0408E4408b66337b5',
     IdentityRegistry: '0x8004A169FB4a3325136EB29fA0ceB6D2e539a432',
     CNS: '0x299319e0BC8d67e11AD8b17D4d5002033874De3a',
+    // Orderly Network — perps.eolas.fun (broker: eolas)
+    OrderlyVault: '0x816f722424B49Cf1275cc86DA9840Fbd5a6167e9',
 }
 
 // ABIs
@@ -571,6 +573,19 @@ async function main() {
         transactions.push({
             to: rolesAddress,
             data: rolesInterface.encodeFunctionData('allowTarget', [ROLE_KEY, CONTRACTS.ZodiacHelpers, ExecutionOptions.Both]),
+        })
+
+        // Scope and allow Orderly Vault (Send only — for perps deposits via perps.eolas.fun)
+        console.log('   - scopeTarget(OrderlyVault)')
+        transactions.push({
+            to: rolesAddress,
+            data: rolesInterface.encodeFunctionData('scopeTarget', [ROLE_KEY, CONTRACTS.OrderlyVault]),
+        })
+
+        console.log('   - allowTarget(OrderlyVault, Send)')
+        transactions.push({
+            to: rolesAddress,
+            data: rolesInterface.encodeFunctionData('allowTarget', [ROLE_KEY, CONTRACTS.OrderlyVault, ExecutionOptions.Send]),
         })
 
         // Assign role to agent

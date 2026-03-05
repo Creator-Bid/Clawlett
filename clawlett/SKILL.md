@@ -229,6 +229,129 @@ Swap flow:
 4. **STOP and wait for the user to explicitly ask to execute** — do not proceed without confirmation
 5. Only after user confirms: execute via Safe + Roles
 
+## Perpetuals Trading (perps.eolas.fun)
+
+Trade perpetuals on **perps.eolas.fun**, powered by [Orderly Network](https://orderly.network) with broker ID `eolas`. Supports 95+ markets on Base Mainnet.
+
+**Architecture:**
+- The agent wallet is the Orderly account (fully automated — no human signature required after setup)
+- USDC is deposited from the Safe into Orderly via ZodiacHelpers approve + direct Vault call
+- Withdrawals go to the agent wallet; use `collect` to send them back to the Safe
+- The Orderly Vault is scoped as an allowed target in Zodiac Roles during initialization
+
+**Execution Policy:** Same as swaps — show preview by default, require explicit confirmation before executing on-chain or API orders.
+
+### Setup (one-time)
+
+```
+Set up perps trading
+Run perps setup
+```
+
+```bash
+node scripts/perps.js setup
+```
+
+This registers the agent with Orderly Network and generates an Ed25519 API key stored in `config/orderly.pk`. The key expires after 365 days and can be regenerated with `--force`.
+
+**Note for existing wallets:** If your Safe was initialized before perps support, the Orderly Vault may not be scoped in Roles. Re-run `initialize.js --owner <YOUR_ADDRESS>` to add it, or run `perps.js setup` which will advise you.
+
+### Deposit USDC
+
+```
+Deposit 100 USDC to Orderly for perps trading
+Deposit 500 USDC into my perps account
+```
+
+```bash
+node scripts/perps.js deposit --amount 100
+node scripts/perps.js deposit --amount 100 --execute
+```
+
+Two-step on-chain process:
+1. Approve USDC for the Orderly Vault (via ZodiacHelpers delegatecall)
+2. Call `Vault.deposit()` directly (Safe → Vault, credited to agent's Orderly account)
+
+### Capabilities
+
+| Action | Autonomous | Notes |
+|--------|------------|-------|
+| Setup Orderly account | ⚠️ | One-time; requires explicit confirmation |
+| Check Orderly balance | ✅ | Shows Orderly, Safe, and agent USDC |
+| List markets | ✅ | 95+ perp markets on Base |
+| Get price / market info | ✅ | Mark price, funding rate, OI |
+| Deposit USDC | ⚠️ | Requires explicit confirmation |
+| Withdraw USDC | ⚠️ | Requires explicit confirmation |
+| Collect to Safe | ⚠️ | Forwards agent USDC → Safe; requires explicit confirmation |
+| Open long position | ⚠️ | Market or limit; requires explicit confirmation |
+| Open short position | ⚠️ | Market or limit; requires explicit confirmation |
+| Close position | ⚠️ | Market close; requires explicit confirmation |
+| View positions | ✅ | Shows all open positions + unrealized PnL |
+| View open orders | ✅ | Lists all pending orders |
+| Cancel order | ⚠️ | Requires explicit confirmation |
+
+### Trading
+
+```
+Check my Orderly balance
+What perp markets are available?
+What's the ETH perp price?
+
+Long 0.01 ETH perp
+Short 0.005 BTC perp
+Long ETH perp with $50 notional
+Open a limit long on ETH at 2000
+
+Close my ETH position
+Show my open positions
+Cancel order 12345
+```
+
+```bash
+# Balance and markets
+node scripts/perps.js balance
+node scripts/perps.js markets
+node scripts/perps.js markets --filter BTC
+node scripts/perps.js price --symbol ETH
+
+# Open positions (market order, preview then execute)
+node scripts/perps.js long  --symbol ETH --size 0.01
+node scripts/perps.js long  --symbol ETH --size 0.01 --execute
+node scripts/perps.js short --symbol BTC --size 0.001 --execute
+
+# Open with notional USDC value instead of base size
+node scripts/perps.js long  --symbol ETH --notional 50 --execute
+
+# Limit order
+node scripts/perps.js long  --symbol ETH --size 0.01 --limit --price 1950 --execute
+
+# Close position
+node scripts/perps.js close --symbol ETH
+node scripts/perps.js close --symbol ETH --execute
+
+# Orders
+node scripts/perps.js orders
+node scripts/perps.js cancel --order-id 12345 --symbol ETH
+
+# Withdraw flow
+node scripts/perps.js withdraw --amount 100 --execute
+node scripts/perps.js collect --all --execute
+```
+
+**Symbol format:** Use short symbols (`ETH`, `BTC`, `SOL`) — the script resolves them to `PERP_ETH_USDC` automatically.
+
+### Contracts (Base Mainnet — Orderly Network)
+
+| Contract | Address | Description |
+|----------|---------|-------------|
+| Orderly Vault | `0x816f722424B49Cf1275cc86DA9840Fbd5a6167e9` | USDC deposit/withdrawal |
+| Verify Contract | `0x6F7a338F2aA472838dEFD3283eB360d4Dff5D203` | API key registration (EIP-712) |
+| USDC | `0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913` | Collateral token (6 decimals) |
+
+Orderly API: `https://api.orderly.org` · Broker ID: `eolas`
+
+---
+
 ## Scripts
 
 | Script | Description |
@@ -238,6 +361,7 @@ Swap flow:
 | `cow.js` | Swap tokens via CoW Protocol (MEV-protected) |
 | `balance.js` | Check ETH and token balances |
 | `trenches.js` | Create and trade Trenches tokens via factory |
+| `perps.js` | Perpetuals trading on perps.eolas.fun via Orderly Network |
 
 ### Examples
 
