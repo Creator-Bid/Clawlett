@@ -31,6 +31,7 @@ import { ethers } from 'ethers'
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
+import { loadChainAndConfig } from './chains/index.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -39,15 +40,7 @@ const __dirname = path.dirname(__filename)
 // CONSTANTS
 // ============================================================================
 
-const DEFAULT_RPC_URL = 'https://mainnet.base.org'
-const CHAIN_ID = 8453
-const TRENCHES_API_URL = process.env.TRENCHES_API_URL || 'https://trenches.bid'
-
-// Contracts
-const AGENT_KEY_FACTORY = '0x2EA0010c18fa7239CAD047eb2596F8d8B7Cf2988'
-const WETH_ADDRESS = '0x4200000000000000000000000000000000000006'
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
-const BID_ADDRESS = '0xa1832f7F4e534aE557f9B5AB76dE54B1873e498B'
 
 // Uniswap V3 sqrt price limits
 const MIN_SQRT_PRICE = 4295128739n
@@ -80,22 +73,14 @@ const ERC20_ABI = [
 // HELPERS
 // ============================================================================
 
-function loadConfig(configDir) {
-    const configPath = path.join(configDir, 'wallet.json')
-    if (!fs.existsSync(configPath)) {
-        throw new Error(`Config not found: ${configPath}\nRun initialize.js first.`)
-    }
-    return JSON.parse(fs.readFileSync(configPath, 'utf8'))
-}
-
 function apiHeaders(extra = {}) {
     return { ...extra }
 }
 
-function loadAgentAndRoles(config, configDir, rpcUrl) {
-    const provider = new ethers.JsonRpcProvider(rpcUrl, CHAIN_ID, { staticNetwork: true })
+function loadAgentAndRoles(config, baseConfigDir, rpcUrl, chainId) {
+    const provider = new ethers.JsonRpcProvider(rpcUrl, chainId, { staticNetwork: true })
 
-    const agentPkPath = path.join(configDir, 'agent.pk')
+    const agentPkPath = path.join(baseConfigDir, 'agent.pk')
     if (!fs.existsSync(agentPkPath)) {
         throw new Error('Agent private key not found. Run initialize.js first.')
     }
@@ -135,22 +120,22 @@ function formatEth(wei) {
 // AUTHENTICATION
 // ============================================================================
 
-async function getAuthCookies(config, configDir, rpcUrl) {
+async function getAuthCookies(config, baseConfigDir, rpcUrl, chainId, trenchesApiUrl) {
     if (config.cookies) {
         return config.cookies
     }
 
     // Re-authenticate using agent wallet
     console.log('No stored cookies, authenticating...')
-    const agentPkPath = path.join(configDir, 'agent.pk')
+    const agentPkPath = path.join(baseConfigDir, 'agent.pk')
     let privateKey = fs.readFileSync(agentPkPath, 'utf8').trim()
     if (!privateKey.startsWith('0x')) privateKey = '0x' + privateKey
 
-    const provider = new ethers.JsonRpcProvider(rpcUrl, CHAIN_ID, { staticNetwork: true })
+    const provider = new ethers.JsonRpcProvider(rpcUrl, chainId, { staticNetwork: true })
     const wallet = new ethers.Wallet(privateKey, provider)
 
     const challengeRes = await fetch(
-        `${TRENCHES_API_URL}/api/auth/wallet?wallet=${wallet.address.toLowerCase()}`,
+        `${trenchesApiUrl}/api/auth/wallet?wallet=${wallet.address.toLowerCase()}`,
         { headers: apiHeaders() },
     )
     const challengeData = await challengeRes.json()
@@ -163,7 +148,7 @@ async function getAuthCookies(config, configDir, rpcUrl) {
     const message = challengeData.message || payload.message
 
     const signature = await wallet.signMessage(message)
-    const authRes = await fetch(`${TRENCHES_API_URL}/api/auth/wallet`, {
+    const authRes = await fetch(`${trenchesApiUrl}/api/auth/wallet`, {
         method: 'POST',
         headers: apiHeaders({ 'Content-Type': 'application/json' }),
         body: JSON.stringify({
@@ -191,7 +176,7 @@ async function getAuthCookies(config, configDir, rpcUrl) {
 // API FUNCTIONS
 // ============================================================================
 
-async function uploadImageApi(cookies, imagePath) {
+async function uploadImageApi(cookies, imagePath, trenchesApiUrl) {
     if (!fs.existsSync(imagePath)) {
         throw new Error(`Image file not found: ${imagePath}`)
     }
@@ -213,7 +198,7 @@ async function uploadImageApi(cookies, imagePath) {
     const formData = new FormData()
     formData.append('image', blob, path.basename(imagePath))
 
-    const response = await fetch(`${TRENCHES_API_URL}/api/skill/image`, {
+    const response = await fetch(`${trenchesApiUrl}/api/skill/image`, {
         method: 'POST',
         headers: apiHeaders({ 'Cookie': cookies }),
         body: formData,
@@ -227,8 +212,8 @@ async function uploadImageApi(cookies, imagePath) {
     return data.imageUrl
 }
 
-async function createTokenApi(cookies, params) {
-    const response = await fetch(`${TRENCHES_API_URL}/api/skill/token/create`, {
+async function createTokenApi(cookies, params, trenchesApiUrl, chainId) {
+    const response = await fetch(`${trenchesApiUrl}/api/skill/token/create`, {
         method: 'POST',
         headers: apiHeaders({
             'Content-Type': 'application/json',
@@ -241,7 +226,7 @@ async function createTokenApi(cookies, params) {
             twitter: params.twitter || '',
             website: params.website || '',
             initialBuyAmount: params.initialBuyAmount || '0',
-            chainId: CHAIN_ID,
+            chainId: chainId,
             baseToken: params.baseToken || ZERO_ADDRESS,
             isAntiSnipeEnabled: params.isAntiSnipeEnabled !== false,
             imageUrl: params.imageUrl || '',
@@ -256,8 +241,8 @@ async function createTokenApi(cookies, params) {
     return data
 }
 
-async function getSwapSignature(cookies, tokenAddress, amountIn, isBuy) {
-    const response = await fetch(`${TRENCHES_API_URL}/api/skill/swap`, {
+async function getSwapSignature(cookies, tokenAddress, amountIn, isBuy, trenchesApiUrl, chainId) {
+    const response = await fetch(`${trenchesApiUrl}/api/skill/swap`, {
         method: 'POST',
         headers: apiHeaders({
             'Content-Type': 'application/json',
@@ -267,7 +252,7 @@ async function getSwapSignature(cookies, tokenAddress, amountIn, isBuy) {
             tokenAddress,
             amountIn: amountIn.toString(),
             isBuy,
-            chainId: CHAIN_ID,
+            chainId: chainId,
         }),
     })
 
@@ -279,9 +264,9 @@ async function getSwapSignature(cookies, tokenAddress, amountIn, isBuy) {
     return data
 }
 
-async function getTokenInfo(symbol) {
+async function getTokenInfo(symbol, trenchesApiUrl, chainId) {
     const response = await fetch(
-        `${TRENCHES_API_URL}/api/skill/token?symbol=${encodeURIComponent(symbol)}&chainId=${CHAIN_ID}`,
+        `${trenchesApiUrl}/api/skill/token?symbol=${encodeURIComponent(symbol)}&chainId=${chainId}`,
         { headers: apiHeaders() },
     )
 
@@ -293,10 +278,10 @@ async function getTokenInfo(symbol) {
     return data
 }
 
-async function getDiscovery(endpoint, params = {}) {
-    const query = new URLSearchParams({ chainId: String(CHAIN_ID), ...params })
+async function getDiscovery(endpoint, params = {}, trenchesApiUrl, chainId) {
+    const query = new URLSearchParams({ chainId: String(chainId), ...params })
     const response = await fetch(
-        `${TRENCHES_API_URL}/api/skill/tokens/${endpoint}?${query}`,
+        `${trenchesApiUrl}/api/skill/tokens/${endpoint}?${query}`,
         { headers: apiHeaders() },
     )
 
@@ -334,8 +319,9 @@ function parseArgs() {
         window: null,
         limit: null,
         // common
+        chain: 'base',
         configDir: process.env.WALLET_CONFIG_DIR || path.join(__dirname, '..', 'config'),
-        rpc: process.env.BASE_RPC_URL || DEFAULT_RPC_URL,
+        rpc: null,
     }
 
     // First positional arg is subcommand
@@ -391,6 +377,9 @@ function parseArgs() {
             case '-l':
                 result.limit = args[++i]
                 break
+            case '--chain':
+                result.chain = args[++i]
+                break
             case '--config-dir':
             case '-c':
                 result.configDir = args[++i]
@@ -435,8 +424,9 @@ Subcommands:
   losers      Show top losers
 
 Common Options:
+  --chain           Chain to use (default: base). Available: base, bnb
   --config-dir, -c  Config directory
-  --rpc, -r         RPC URL (default: ${DEFAULT_RPC_URL})
+  --rpc, -r         RPC URL (overrides chain default)
   --help, -h        Show help
 
 Examples:
@@ -558,12 +548,17 @@ Examples:
 // SUBCOMMAND HANDLERS
 // ============================================================================
 
-async function handleCreate(args) {
+async function handleCreate(args, chain, configDir, config) {
     if (!args.name || !args.symbol || !args.description) {
         console.error('Error: --name, --symbol, and --description are required')
         printHelp('create')
         process.exit(1)
     }
+
+    const trenchesConfig = chain.trenches
+    const trenchesApiUrl = process.env.TRENCHES_API_URL || trenchesConfig.apiUrl
+    const AGENT_KEY_FACTORY = trenchesConfig.factory
+    const BID_ADDRESS = trenchesConfig.bidToken
 
     // Resolve base token
     let baseTokenAddress
@@ -581,12 +576,13 @@ async function handleCreate(args) {
         process.exit(1)
     }
 
-    const config = loadConfig(args.configDir)
-    const { provider, wallet, roles, zodiacHelpersAddress } = loadAgentAndRoles(config, args.configDir, args.rpc)
+    const rpcUrl = args.rpc || process.env.BASE_RPC_URL || chain.rpc
+    const { provider, wallet, roles, zodiacHelpersAddress } = loadAgentAndRoles(config, args.configDir, rpcUrl, chain.chainId)
     const safeAddress = config.safe
 
     console.log(`Safe: ${safeAddress}`)
     console.log(`Creating token: ${args.name} (${args.symbol})`)
+    const isAntiSnipeEnabled = !args.noAntibot
     console.log(`Anti-bot protection: ${isAntiSnipeEnabled ? 'ON' : 'OFF'}`)
 
     // Read mintCost from factory
@@ -628,14 +624,14 @@ async function handleCreate(args) {
     }
 
     // Get auth cookies
-    const cookies = await getAuthCookies(config, args.configDir, args.rpc)
+    const cookies = await getAuthCookies(config, args.configDir, rpcUrl, chain.chainId, trenchesApiUrl)
 
     // Upload image if provided
     let imageUrl = ''
     if (args.image) {
         console.log(`\nUploading image: ${args.image}`)
         const imagePath = path.resolve(args.image)
-        imageUrl = await uploadImageApi(cookies, imagePath)
+        imageUrl = await uploadImageApi(cookies, imagePath, trenchesApiUrl)
         console.log('   Image uploaded successfully!')
     }
 
@@ -651,7 +647,7 @@ async function handleCreate(args) {
         baseToken: baseTokenAddress,
         isAntiSnipeEnabled,
         imageUrl,
-    })
+    }, trenchesApiUrl, chain.chainId)
     console.log('Signature received.')
 
     // Approve ERC20 base token for factory if needed (e.g. BID initial buy)
@@ -736,7 +732,7 @@ async function handleCreate(args) {
     console.log(`   Tx: ${receipt.hash}`)
 }
 
-async function handleBuy(args) {
+async function handleBuy(args, chain, configDir, config) {
     if (!args.token) {
         console.error('Error: --token is required')
         printHelp('buy')
@@ -748,15 +744,21 @@ async function handleBuy(args) {
         process.exit(1)
     }
 
-    const config = loadConfig(args.configDir)
-    const { provider, wallet, roles, zodiacHelpersAddress } = loadAgentAndRoles(config, args.configDir, args.rpc)
+    const trenchesConfig = chain.trenches
+    const trenchesApiUrl = process.env.TRENCHES_API_URL || trenchesConfig.apiUrl
+    const AGENT_KEY_FACTORY = trenchesConfig.factory
+    const BID_ADDRESS = trenchesConfig.bidToken
+    const WETH_ADDRESS = chain.wrappedNative
+
+    const rpcUrl = args.rpc || process.env.BASE_RPC_URL || chain.rpc
+    const { provider, wallet, roles, zodiacHelpersAddress } = loadAgentAndRoles(config, args.configDir, rpcUrl, chain.chainId)
     const safeAddress = config.safe
 
     // Resolve token and detect base token in one API call
     console.log(`\nResolving token: ${args.token}`)
     let tokenAddress, tokenSymbol, tokenDecimals
     let baseTokenAddress = WETH_ADDRESS
-    let baseTokenSymbol = 'ETH'
+    let baseTokenSymbol = chain.nativeToken
 
     if (args.token.startsWith('0x') && args.token.length === 42) {
         tokenAddress = ethers.getAddress(args.token)
@@ -766,7 +768,7 @@ async function handleBuy(args) {
 
         // Check anti-bot status and detect base token via API
         try {
-            const tokenInfo = await getTokenInfo(tokenSymbol)
+            const tokenInfo = await getTokenInfo(tokenSymbol, trenchesApiUrl, chain.chainId)
             if (tokenInfo.isAntiBotActive) {
                 console.error(`\nError: Anti-bot protection is active for ${tokenSymbol}.`)
                 console.error('The agent cannot buy during the protection window. Try again later.')
@@ -779,7 +781,7 @@ async function handleBuy(args) {
             }
         } catch {}
     } else {
-        const tokenInfo = await getTokenInfo(args.token)
+        const tokenInfo = await getTokenInfo(args.token, trenchesApiUrl, chain.chainId)
         tokenAddress = ethers.getAddress(tokenInfo.address || tokenInfo.tokenAddress)
         tokenSymbol = tokenInfo.symbol || args.token
         tokenDecimals = tokenInfo.decimals || 18
@@ -846,11 +848,11 @@ async function handleBuy(args) {
     }
 
     // Get auth cookies
-    const cookies = await getAuthCookies(config, args.configDir, args.rpc)
+    const cookies = await getAuthCookies(config, args.configDir, rpcUrl, chain.chainId, trenchesApiUrl)
 
     // Get swap signature from API
     console.log('\nGetting swap signature...')
-    const apiResponse = await getSwapSignature(cookies, tokenAddress, amountIn.toString(), true)
+    const apiResponse = await getSwapSignature(cookies, tokenAddress, amountIn.toString(), true, trenchesApiUrl, chain.chainId)
     console.log('Signature received.')
 
     // Compute sqrtPriceLimit using actual base token
@@ -925,7 +927,7 @@ async function handleBuy(args) {
     console.log(`   Tx: ${receipt.hash}`)
 }
 
-async function handleSell(args) {
+async function handleSell(args, chain, configDir, config) {
     if (!args.token) {
         console.error('Error: --token is required')
         printHelp('sell')
@@ -937,15 +939,21 @@ async function handleSell(args) {
         process.exit(1)
     }
 
-    const config = loadConfig(args.configDir)
-    const { provider, wallet, roles, zodiacHelpersAddress } = loadAgentAndRoles(config, args.configDir, args.rpc)
+    const trenchesConfig = chain.trenches
+    const trenchesApiUrl = process.env.TRENCHES_API_URL || trenchesConfig.apiUrl
+    const AGENT_KEY_FACTORY = trenchesConfig.factory
+    const BID_ADDRESS = trenchesConfig.bidToken
+    const WETH_ADDRESS = chain.wrappedNative
+
+    const rpcUrl = args.rpc || process.env.BASE_RPC_URL || chain.rpc
+    const { provider, wallet, roles, zodiacHelpersAddress } = loadAgentAndRoles(config, args.configDir, rpcUrl, chain.chainId)
     const safeAddress = config.safe
 
     // Resolve token and detect base token in one API call
     console.log(`\nResolving token: ${args.token}`)
     let tokenAddress, tokenSymbol, tokenDecimals
     let baseTokenAddress = WETH_ADDRESS
-    let baseTokenSymbol = 'ETH'
+    let baseTokenSymbol = chain.nativeToken
 
     if (args.token.startsWith('0x') && args.token.length === 42) {
         tokenAddress = ethers.getAddress(args.token)
@@ -954,7 +962,7 @@ async function handleSell(args) {
         tokenDecimals = Number(await tokenContract.decimals())
 
         try {
-            const tokenInfo = await getTokenInfo(tokenSymbol)
+            const tokenInfo = await getTokenInfo(tokenSymbol, trenchesApiUrl, chain.chainId)
             if (tokenInfo.baseToken && tokenInfo.baseToken.address &&
                 tokenInfo.baseToken.address.toLowerCase() === BID_ADDRESS.toLowerCase()) {
                 baseTokenAddress = BID_ADDRESS
@@ -962,7 +970,7 @@ async function handleSell(args) {
             }
         } catch {}
     } else {
-        const tokenInfo = await getTokenInfo(args.token)
+        const tokenInfo = await getTokenInfo(args.token, trenchesApiUrl, chain.chainId)
         tokenAddress = ethers.getAddress(tokenInfo.address || tokenInfo.tokenAddress)
         tokenSymbol = tokenInfo.symbol || args.token
         tokenDecimals = tokenInfo.decimals || 18
@@ -999,11 +1007,11 @@ async function handleSell(args) {
     }
 
     // Get auth cookies
-    const cookies = await getAuthCookies(config, args.configDir, args.rpc)
+    const cookies = await getAuthCookies(config, args.configDir, rpcUrl, chain.chainId, trenchesApiUrl)
 
     // Get swap signature from API
     console.log('\nGetting swap signature...')
-    const apiResponse = await getSwapSignature(cookies, tokenAddress, amountIn.toString(), false)
+    const apiResponse = await getSwapSignature(cookies, tokenAddress, amountIn.toString(), false, trenchesApiUrl, chain.chainId)
     console.log('Signature received.')
 
     // Compute sqrtPriceLimit using actual base token
@@ -1065,7 +1073,7 @@ async function handleSell(args) {
     console.log(`   Tx: ${receipt.hash}`)
 }
 
-async function handleInfo(args) {
+async function handleInfo(args, chain) {
     const symbol = args.token
     if (!symbol) {
         console.error('Error: token symbol is required')
@@ -1073,8 +1081,9 @@ async function handleInfo(args) {
         process.exit(1)
     }
 
+    const trenchesApiUrl = process.env.TRENCHES_API_URL || chain.trenches.apiUrl
     console.log(`\nFetching info for ${symbol}...\n`)
-    const data = await getTokenInfo(symbol)
+    const data = await getTokenInfo(symbol, trenchesApiUrl, chain.chainId)
 
     console.log('='.repeat(50))
     console.log(`  ${data.name || symbol} (${data.symbol || symbol})`)
@@ -1090,7 +1099,7 @@ async function handleInfo(args) {
     console.log('='.repeat(50))
 }
 
-async function handleDiscovery(args) {
+async function handleDiscovery(args, chain) {
     const endpointMap = {
         'trending': 'trending',
         'new': 'new',
@@ -1105,6 +1114,7 @@ async function handleDiscovery(args) {
         process.exit(1)
     }
 
+    const trenchesApiUrl = process.env.TRENCHES_API_URL || chain.trenches.apiUrl
     const params = {}
     if (args.window) params.window = args.window
     if (args.limit) params.limit = args.limit
@@ -1112,7 +1122,7 @@ async function handleDiscovery(args) {
     const title = args.subcommand.charAt(0).toUpperCase() + args.subcommand.slice(1).replace('-', ' ')
     console.log(`\nFetching ${title.toLowerCase()} tokens...\n`)
 
-    const data = await getDiscovery(endpoint, params)
+    const data = await getDiscovery(endpoint, params, trenchesApiUrl, chain.chainId)
     const tokens = Array.isArray(data) ? data : data.tokens || data.data || []
 
     if (tokens.length === 0) {
@@ -1149,25 +1159,45 @@ async function main() {
         process.exit(0)
     }
 
+    let chain, configDir, config
+    try {
+        const result = loadChainAndConfig(args)
+        chain = result.chain
+        configDir = result.configDir
+        config = result.config
+    } catch (error) {
+        // For info/discovery subcommands, config may not be needed
+        // but we still need the chain for API URLs
+        const { getChain } = await import('./chains/index.js')
+        chain = getChain(args.chain || 'base')
+    }
+
+    if (!chain.trenches) {
+        console.error(`Error: Trenches is not available on ${chain.name}`)
+        process.exit(1)
+    }
+
+    console.log(`Chain: ${chain.name}`)
+
     switch (args.subcommand) {
         case 'create':
-            await handleCreate(args)
+            await handleCreate(args, chain, configDir, config)
             break
         case 'buy':
-            await handleBuy(args)
+            await handleBuy(args, chain, configDir, config)
             break
         case 'sell':
-            await handleSell(args)
+            await handleSell(args, chain, configDir, config)
             break
         case 'info':
-            await handleInfo(args)
+            await handleInfo(args, chain)
             break
         case 'trending':
         case 'new':
         case 'top-volume':
         case 'gainers':
         case 'losers':
-            await handleDiscovery(args)
+            await handleDiscovery(args, chain)
             break
         default:
             console.error(`Unknown subcommand: ${args.subcommand}`)

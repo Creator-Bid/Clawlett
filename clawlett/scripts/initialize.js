@@ -20,28 +20,10 @@ import { ethers } from 'ethers'
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
+import { getChain, getChainConfigDir, migrateConfigIfNeeded } from './chains/index.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
-
-const DEFAULT_RPC_URL = 'https://mainnet.base.org'
-const CHAIN_ID = 8453
-const API_BASE_URL = process.env.WALLET_API_URL || 'https://trenches.bid'
-
-// Contract addresses
-const CONTRACTS = {
-    SafeProxyFactory: '0xa6B71E26C5e0845f74c812102Ca7114b6a896AB2',
-    SafeSingletonL2: '0x3E5c63644E683549055b9Be8653de26E0B4CD36E',
-    CompatibilityFallbackHandler: '0xf48f2B2d2a534e402487b3ee7C18c33Aec0Fe5e4',
-    MultiSend: '0xA238CBeb142c10Ef7Ad8442C6D1f9E89e07e7761',
-    RolesSingleton: '0x9646fDAD06d3e24444381f44362a3B0eB343D337',
-    ModuleProxyFactory: '0x000000000000aDdB49795b0f9bA5BC298cDda236',
-    AeroUniversalRouter: '0x6Df1c91424F79E40E33B1A48F0687B666bE71075',
-    ZodiacHelpers: '0x38441B5bd6370b000747c97a12877c83c0A32eaF',
-    KyberSwapRouter: '0x6131B5fae19EA4f9D964eAc0408E4408b66337b5',
-    IdentityRegistry: '0x8004A169FB4a3325136EB29fA0ceB6D2e539a432',
-    CNS: '0x299319e0BC8d67e11AD8b17D4d5002033874De3a',
-}
 
 // ABIs
 const SAFE_FACTORY_ABI = [
@@ -130,8 +112,9 @@ function parseArgs() {
     const result = {
         owner: null,
         name: null,
+        chain: 'base',
         configDir: process.env.WALLET_CONFIG_DIR || path.join(__dirname, '..', 'config'),
-        rpc: process.env.BASE_RPC_URL || DEFAULT_RPC_URL,
+        rpc: null,
     }
 
     for (let i = 0; i < args.length; i++) {
@@ -143,6 +126,9 @@ function parseArgs() {
             case '--name':
             case '-n':
                 result.name = args[++i]
+                break
+            case '--chain':
+                result.chain = args[++i]
                 break
             case '--config-dir':
             case '-c':
@@ -164,13 +150,14 @@ function parseArgs() {
 
 function printHelp() {
     console.log(`
-Usage: node initialize.js --owner <OWNER_ADDRESS> [--name <AGENT_NAME>]
+Usage: node initialize.js --owner <OWNER_ADDRESS> [--name <AGENT_NAME>] [--chain <CHAIN>]
 
 Arguments:
   --owner, -o      Owner wallet address (will be sole Safe owner after setup)
   --name, -n       Unique agent name for CNS (optional, registers on Clawlett Name Service)
+  --chain          Chain to use (default: base). Available: base, bnb
   --config-dir, -c Config directory (default: ../config)
-  --rpc, -r        RPC URL (default: ${DEFAULT_RPC_URL})
+  --rpc, -r        RPC URL (overrides chain default)
 
 This script is idempotent - run it multiple times to continue from where it left off.
 `)
@@ -197,9 +184,9 @@ function clearState(configDir) {
 }
 
 // Backend registration functions
-async function checkExistingAgent(wallet) {
+async function checkExistingAgent(wallet, apiBaseUrl, chainId) {
     try {
-        const url = `${API_BASE_URL}/api/skill/agent?wallet=${wallet}&chainId=${CHAIN_ID}`
+        const url = `${apiBaseUrl}/api/skill/agent?wallet=${wallet}&chainId=${chainId}`
         const response = await fetch(url)
         if (response.ok) {
             const data = await response.json()
@@ -215,8 +202,8 @@ async function checkExistingAgent(wallet) {
     return null
 }
 
-async function getRegistrationChallenge(wallet) {
-    const url = `${API_BASE_URL}/api/skill/agent?wallet=${wallet}&chainId=${CHAIN_ID}`
+async function getRegistrationChallenge(wallet, apiBaseUrl, chainId) {
+    const url = `${apiBaseUrl}/api/skill/agent?wallet=${wallet}&chainId=${chainId}`
     const response = await fetch(url)
     const data = await response.json()
 
@@ -239,12 +226,12 @@ function getMessageFromJwt(jwt) {
     return payload.message
 }
 
-async function registerAgent(agentWallet, jwt, agentData) {
+async function registerAgent(agentWallet, jwt, agentData, apiBaseUrl) {
     // Sign the challenge message
     const message = getMessageFromJwt(jwt)
     const signature = await agentWallet.signMessage(message)
 
-    const url = `${API_BASE_URL}/api/skill/agent`
+    const url = `${apiBaseUrl}/api/skill/agent`
     const response = await fetch(url, {
         method: 'POST',
         headers: {
@@ -271,10 +258,10 @@ async function registerAgent(agentWallet, jwt, agentData) {
 }
 
 // Backend auth — GET challenge, sign, POST to get session cookies
-async function authenticateAgent(agentWallet) {
+async function authenticateAgent(agentWallet, apiBaseUrl) {
     // Step 1: Get challenge
     const challengeRes = await fetch(
-        `${API_BASE_URL}/api/auth/wallet?wallet=${agentWallet.address.toLowerCase()}`
+        `${apiBaseUrl}/api/auth/wallet?wallet=${agentWallet.address.toLowerCase()}`
     )
     const challengeData = await challengeRes.json()
     if (!challengeRes.ok) {
@@ -285,7 +272,7 @@ async function authenticateAgent(agentWallet) {
     const message = challengeData.message || getMessageFromJwt(challengeData.jwt)
     const signature = await agentWallet.signMessage(message)
 
-    const authRes = await fetch(`${API_BASE_URL}/api/auth/wallet`, {
+    const authRes = await fetch(`${apiBaseUrl}/api/auth/wallet`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -306,14 +293,14 @@ async function authenticateAgent(agentWallet) {
 }
 
 // CNS — request signature from backend, then register on-chain
-async function getCnsSignature(cookies, name) {
-    const res = await fetch(`${API_BASE_URL}/api/cns/signature`, {
+async function getCnsSignature(cookies, name, apiBaseUrl, chainId) {
+    const res = await fetch(`${apiBaseUrl}/api/cns/signature`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
             'Cookie': cookies,
         },
-        body: JSON.stringify({ name, chainId: String(CHAIN_ID) }),
+        body: JSON.stringify({ name, chainId: String(chainId) }),
     })
 
     const data = await res.json()
@@ -379,23 +366,35 @@ async function main() {
         process.exit(1)
     }
 
+    const chain = getChain(args.chain || 'base')
+    const CHAIN_ID = chain.chainId
+    const CONTRACTS = chain.contracts
+    const rpcUrl = args.rpc || process.env.BASE_RPC_URL || chain.rpc
+    const API_BASE_URL = process.env.WALLET_API_URL || 'https://trenches.bid'
+
     const owner = ethers.getAddress(args.owner)
     const agentName = args.name ? args.name.toUpperCase() : null
-    const provider = new ethers.JsonRpcProvider(args.rpc, CHAIN_ID, { staticNetwork: true })
+    const provider = new ethers.JsonRpcProvider(rpcUrl, CHAIN_ID, { staticNetwork: true })
+
+    // Migrate old flat config structure if needed
+    migrateConfigIfNeeded(args.configDir)
+
+    // Resolve per-chain config directory
+    const chainConfigDir = getChainConfigDir(args.configDir, chain.id)
 
     console.log('\n========================================')
     console.log('     Claw Wallet Initialization')
     console.log('========================================\n')
     console.log(`Owner: ${owner}`)
-    console.log(`Chain: Base (${CHAIN_ID})`)
+    console.log(`Chain: ${chain.name} (${CHAIN_ID})`)
 
     // Ensure config directory exists
-    if (!fs.existsSync(args.configDir)) {
-        fs.mkdirSync(args.configDir, { recursive: true })
+    if (!fs.existsSync(chainConfigDir)) {
+        fs.mkdirSync(chainConfigDir, { recursive: true })
     }
 
     // Load state for resume capability
-    let state = loadState(args.configDir)
+    let state = loadState(chainConfigDir)
 
     // Step 1: Agent keypair
     console.log('\n--- Step 1: Agent Keypair ---')
@@ -412,7 +411,7 @@ async function main() {
         fs.writeFileSync(agentPkPath, agentWallet.privateKey.slice(2), { mode: 0o600 })
         console.log(`Agent created: ${agentWallet.address}`)
         state = { step: STEPS.AGENT_CREATED }
-        saveState(args.configDir, state)
+        saveState(chainConfigDir, state)
     }
 
     const agentBalance = await provider.getBalance(agentWallet.address)
@@ -420,7 +419,7 @@ async function main() {
 
     if (agentBalance < ethers.parseEther('0.000005')) {
         console.log(`\n⚠️  Agent needs gas for deployment.`)
-        console.log(`   Send at least 0.00002 ETH to: ${agentWallet.address}`)
+        console.log(`   Send at least 0.00002 ${chain.nativeToken} on ${chain.name} to: ${agentWallet.address}`)
         console.log(`   Then run this script again.\n`)
         process.exit(0)
     }
@@ -483,7 +482,7 @@ async function main() {
             safeBlockNumber: safeReceipt.blockNumber,
             safeBlockTime: new Date().toISOString(),
         }
-        saveState(args.configDir, state)
+        saveState(chainConfigDir, state)
     } else {
         console.log(`\n--- Step 2: Safe ---`)
         console.log(`   Already deployed: ${safeAddress}`)
@@ -520,7 +519,7 @@ async function main() {
         console.log(`   Roles deployed: ${rolesAddress}`)
 
         state = { ...state, step: STEPS.ROLES_DEPLOYED, roles: rolesAddress }
-        saveState(args.configDir, state)
+        saveState(chainConfigDir, state)
     } else {
         console.log(`\n--- Step 3: Zodiac Roles ---`)
         console.log(`   Already deployed: ${rolesAddress}`)
@@ -547,18 +546,20 @@ async function main() {
             })
         }
 
-        // Scope and allow Aerodrome Universal Router
-        console.log('   - scopeTarget(AeroUniversalRouter)')
-        transactions.push({
-            to: rolesAddress,
-            data: rolesInterface.encodeFunctionData('scopeTarget', [ROLE_KEY, CONTRACTS.AeroUniversalRouter]),
-        })
+        // Scope and allow Aerodrome Universal Router (Base only)
+        if (CONTRACTS.AeroUniversalRouter) {
+            console.log('   - scopeTarget(AeroUniversalRouter)')
+            transactions.push({
+                to: rolesAddress,
+                data: rolesInterface.encodeFunctionData('scopeTarget', [ROLE_KEY, CONTRACTS.AeroUniversalRouter]),
+            })
 
-        console.log('   - allowTarget(AeroUniversalRouter, Send)')
-        transactions.push({
-            to: rolesAddress,
-            data: rolesInterface.encodeFunctionData('allowTarget', [ROLE_KEY, CONTRACTS.AeroUniversalRouter, ExecutionOptions.Send]),
-        })
+            console.log('   - allowTarget(AeroUniversalRouter, Send)')
+            transactions.push({
+                to: rolesAddress,
+                data: rolesInterface.encodeFunctionData('allowTarget', [ROLE_KEY, CONTRACTS.AeroUniversalRouter, ExecutionOptions.Send]),
+            })
+        }
 
         // Scope and allow ZodiacHelpers (with DelegateCall)
         console.log('   - scopeTarget(ZodiacHelpers)')
@@ -596,23 +597,23 @@ async function main() {
         console.log('   Configuration complete!')
 
         state = { ...state, step: STEPS.CONFIGURED }
-        saveState(args.configDir, state)
+        saveState(chainConfigDir, state)
     } else {
         console.log('\n--- Step 4: Configuration ---')
         console.log('   Already configured!')
     }
 
-    // Step 5: Register with backend
+    // Step 5: Register with backend (always registers on Trenches backend)
     let registration = state.registration
     if (!registration) {
         console.log('\n--- Step 5: Register with Backend ---')
-        const existingAgent = await checkExistingAgent(agentWallet.address.toLowerCase())
+        const existingAgent = await checkExistingAgent(agentWallet.address.toLowerCase(), API_BASE_URL, CHAIN_ID)
         if (existingAgent && !existingAgent.error && !existingAgent.needsRegistration) {
             console.log('   Already registered!')
             registration = existingAgent
         } else {
             try {
-                const jwt = await getRegistrationChallenge(agentWallet.address.toLowerCase())
+                const jwt = await getRegistrationChallenge(agentWallet.address.toLowerCase(), API_BASE_URL, CHAIN_ID)
                 const block = await provider.getBlock('latest')
                 registration = await registerAgent(agentWallet, jwt, {
                     owner,
@@ -624,13 +625,13 @@ async function main() {
                     evt_tx_hash: state.safeTxHash || '',
                     evt_block_number: state.safeBlockNumber?.toString() || block.number.toString(),
                     evt_block_time: state.safeBlockTime || new Date(Number(block.timestamp) * 1000).toISOString(),
-                })
+                }, API_BASE_URL)
                 console.log(`   Registered! Agent ID: ${registration.id || 'N/A'}`)
                 if (registration.referralCode) {
                     console.log(`   Referral code: ${registration.referralCode}`)
                 }
                 state = { ...state, registration }
-                saveState(args.configDir, state)
+                saveState(chainConfigDir, state)
             } catch (error) {
                 console.log(`   Warning: Registration failed: ${error.message}`)
                 console.log('   Continuing setup...')
@@ -643,7 +644,10 @@ async function main() {
 
     // Step 6: Register CNS name (via Safe — backend signs with account=safe)
     let cnsTokenId = state.cnsTokenId
-    if (!agentName) {
+    if (!chain.cns) {
+        console.log('\n--- Step 6: CNS Name ---')
+        console.log(`   Skipped (CNS not available on ${chain.name})`)
+    } else if (!agentName) {
         console.log('\n--- Step 6: CNS Name ---')
         console.log('   Skipped (--name not provided)')
     } else if (!cnsTokenId) {
@@ -658,7 +662,7 @@ async function main() {
             cnsTokenId = Number(existingTokenId)
             console.log(`   Safe already owns CNS name: ${existingName} (Token ID: ${cnsTokenId})`)
             state = { ...state, cnsTokenId }
-            saveState(args.configDir, state)
+            saveState(chainConfigDir, state)
         } else {
             // Check if name is available on-chain
             const available = await cns.isNameAvailable(agentName)
@@ -673,10 +677,10 @@ async function main() {
 
             try {
                 console.log('   Authenticating with backend...')
-                const cookies = await authenticateAgent(agentWallet)
+                const cookies = await authenticateAgent(agentWallet, API_BASE_URL)
 
                 console.log('   Requesting CNS signature...')
-                const sigResponse = await getCnsSignature(cookies, agentName)
+                const sigResponse = await getCnsSignature(cookies, agentName, API_BASE_URL, CHAIN_ID)
 
                 // Backend wraps in { signature: { signature, data, expiresAt } }
                 const sig = sigResponse.signature || sigResponse
@@ -708,7 +712,7 @@ async function main() {
 
                 console.log(`   CNS registered! Name: ${agentName}, Token ID: ${cnsTokenId || 'N/A'}`)
                 state = { ...state, cnsTokenId }
-                saveState(args.configDir, state)
+                saveState(chainConfigDir, state)
             } catch (error) {
                 console.log(`   Warning: CNS registration failed: ${error.message}`)
                 console.log('   Continuing setup...')
@@ -779,7 +783,7 @@ async function main() {
             const agentRegistration = {
                 type: 'https://eips.ethereum.org/EIPS/eip-8004#registration-v1',
                 name: 'Clawlett',
-                description: `Autonomous MEV-protected token swap agent on Base. Safe: ${safeAddress}`,
+                description: `Autonomous MEV-protected token swap agent on ${chain.name}. Safe: ${safeAddress}`,
                 image: '',
                 services: [
                     {
@@ -817,12 +821,12 @@ async function main() {
             if (!erc8004AgentId) {
                 console.log('   Warning: Could not parse agentId from events, skipping.')
                 state = { ...state, step: STEPS.ERC8004_REGISTERED }
-                saveState(args.configDir, state)
+                saveState(chainConfigDir, state)
             } else {
                 console.log(`   Minted identity NFT #${erc8004AgentId}`)
                 // Save immediately so we can resume transfer if interrupted
                 state = { ...state, erc8004AgentId }
-                saveState(args.configDir, state)
+                saveState(chainConfigDir, state)
             }
         }
 
@@ -844,7 +848,7 @@ async function main() {
         }
 
         state = { ...state, step: STEPS.ERC8004_REGISTERED, erc8004AgentId }
-        saveState(args.configDir, state)
+        saveState(chainConfigDir, state)
     } else {
         console.log('\n--- Step 8: ERC-8004 Identity ---')
         if (erc8004AgentId) {
@@ -869,22 +873,24 @@ async function main() {
         createdAt: new Date().toISOString(),
         cookies: registration?.cookies,
     }
-    saveConfig(args.configDir, config)
-    clearState(args.configDir)
+    saveConfig(chainConfigDir, config)
+    clearState(chainConfigDir)
 
     // Summary
+    const chainFlag = chain.id !== 'base' ? ` --chain ${chain.id}` : ''
     console.log('\n========================================')
     console.log('         Setup Complete!')
     console.log('========================================')
-    console.log(`\nSafe:   ${safeAddress}`)
+    console.log(`\nChain:  ${chain.name}`)
+    console.log(`Safe:   ${safeAddress}`)
     console.log(`Roles:  ${rolesAddress}`)
     console.log(`Agent:  ${agentWallet.address}`)
     console.log(`Owner:  ${owner}`)
-    console.log(`\nFund your Safe to start trading:`)
+    console.log(`\nFund your Safe on ${chain.name} to start trading:`)
     console.log(`   ${safeAddress}`)
     console.log(`\nUsage:`)
-    console.log(`   node balance.js --all`)
-    console.log(`   node swap.js --from ETH --to USDC --amount 0.1`)
+    console.log(`   node balance.js${chainFlag} --all`)
+    console.log(`   node swap.js${chainFlag} --from ${chain.nativeToken} --to USDC --amount 0.1`)
     console.log('')
 }
 

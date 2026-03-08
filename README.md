@@ -4,7 +4,9 @@
   <img src="assets/mascot.jpg" alt="Clawlett Mascot" width="400">
 </p>
 
-An [OpenClaw](https://openclaw.ai) skill for autonomous token swaps and Trenches trading on Base, powered by Gnosis Safe + Zodiac Roles.
+An [OpenClaw](https://openclaw.ai) skill for autonomous token swaps and Trenches trading, powered by Gnosis Safe + Zodiac Roles.
+
+**Supported chains:** Base (default), BNB Chain. All scripts accept `--chain <name>`.
 
 ## Overview
 
@@ -58,9 +60,11 @@ npm install
 
 ```bash
 node clawlett/scripts/initialize.js --owner <YOUR_WALLET_ADDRESS>
+# Or for BNB Chain:
+node clawlett/scripts/initialize.js --chain bnb --owner <YOUR_WALLET_ADDRESS>
 ```
 
-2. Fund the agent address with ~0.001 ETH for gas (address shown in output)
+2. Fund the agent address with ~0.001 native token for gas (address shown in output)
 
 3. Run the script again - it will complete the setup automatically
 
@@ -161,7 +165,7 @@ Protected tokens can only resolve to verified addresses (scam protection):
 
 ## Configuration
 
-Config is stored in `config/wallet.json` after initialization:
+Config is stored per-chain in `config/<chain>/wallet.json` after initialization. The agent private key (`config/agent.pk`) is shared across all chains.
 
 ```json
 {

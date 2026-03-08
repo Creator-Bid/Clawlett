@@ -3,38 +3,11 @@
  *
  * Provides verified token lists, symbol resolution, and DexScreener search
  * fallback for tokens not in the hardcoded list.
+ *
+ * All functions are parameterized by chain config.
  */
 
 import { ethers } from 'ethers'
-
-// ============================================================================
-// VERIFIED TOKENS - Safeguard against scam tokens
-// ============================================================================
-const VERIFIED_TOKENS = {
-    'ETH': '0x0000000000000000000000000000000000000000',  // Native ETH
-    'WETH': '0x4200000000000000000000000000000000000006',
-    'USDC': '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913',
-    'USDT': '0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2',
-    'DAI': '0x50c5725949A6F0c72E6C4a641F24049A917DB0Cb',
-    'USDS': '0x820C137fa70C8691f0e44Dc420a5e53c168921Dc',
-    'AERO': '0x940181a94A35A4569E4529A3CDfB74e38FD98631',
-    'cbBTC': '0xcbB7C0000aB88B473b1f5aFd9ef808440eed33Bf',
-    'VIRTUAL': '0x0b3e328455c4059EEb9e3f84b5543F74E24e7E1b',
-    'DEGEN': '0x4ed4E862860beD51a9570b96d89aF5E1B0Efefed',
-    'BRETT': '0x532f27101965dd16442E59d40670FaF5eBB142E4',
-    'TOSHI': '0xAC1Bd2486aAf3B5C0fc3Fd868558b082a531B2B4',
-    'WELL': '0xA88594D404727625A9437C3f886C7643872296AE',
-    'BID': '0xa1832f7f4e534ae557f9b5ab76de54b1873e498b',
-}
-
-const TOKEN_ALIASES = {
-    'ETHEREUM': 'ETH',
-    'ETHER': 'ETH',
-    'USD COIN': 'USDC',
-    'TETHER': 'USDT',
-}
-
-const PROTECTED_SYMBOLS = ['ETH', 'WETH', 'USDC', 'USDT', 'DAI', 'USDS', 'AERO', 'cbBTC', 'BID']
 
 const NATIVE_ETH = '0x0000000000000000000000000000000000000000'
 
@@ -50,7 +23,8 @@ const ERC20_ABI = [
 // TOKEN SEARCH - DexScreener fallback
 // ============================================================================
 
-async function searchToken(symbol) {
+async function searchToken(symbol, chain) {
+    const dexChainId = chain.dexscreener?.chainId || 'base'
     const url = `https://api.dexscreener.com/latest/dex/search?q=${encodeURIComponent(symbol)}`
     const response = await fetch(url)
     if (!response.ok) return null
@@ -58,12 +32,10 @@ async function searchToken(symbol) {
     const data = await response.json()
     if (!data.pairs || data.pairs.length === 0) return null
 
-    // Filter to Base pairs only, then find exact symbol match on either token
-    const basePairs = data.pairs.filter(p => p.chainId === 'base')
-    if (basePairs.length === 0) return null
+    const chainPairs = data.pairs.filter(p => p.chainId === dexChainId)
+    if (chainPairs.length === 0) return null
 
-    // Find the token matching the symbol (could be baseToken or quoteToken)
-    for (const pair of basePairs) {
+    for (const pair of chainPairs) {
         const match = [pair.baseToken, pair.quoteToken].find(
             t => t.symbol.toUpperCase() === symbol.toUpperCase()
         )
@@ -86,22 +58,26 @@ async function searchToken(symbol) {
 // TOKEN RESOLUTION
 // ============================================================================
 
-async function resolveToken(token, provider) {
+async function resolveToken(token, provider, chain) {
     token = token.trim()
 
+    const verifiedTokens = chain.verifiedTokens
+    const tokenAliases = chain.tokenAliases || {}
+    const protectedSymbols = chain.protectedSymbols || []
+
     if (token.startsWith('0x') && token.length === 42) {
-        return resolveByAddress(token, provider)
+        return resolveByAddress(token, provider, chain)
     }
 
     const symbol = token.toUpperCase().replace(/^\$/, '')
-    const aliasedSymbol = TOKEN_ALIASES[symbol] || symbol
+    const aliasedSymbol = tokenAliases[symbol] || symbol
 
-    if (VERIFIED_TOKENS[aliasedSymbol]) {
-        const address = VERIFIED_TOKENS[aliasedSymbol]
+    if (verifiedTokens[aliasedSymbol]) {
+        const address = verifiedTokens[aliasedSymbol]
 
-        // Native ETH doesn't have a contract
+        // Native token doesn't have a contract
         if (address === NATIVE_ETH) {
-            return { address, symbol: 'ETH', decimals: 18, verified: true }
+            return { address, symbol: chain.nativeToken || aliasedSymbol, decimals: 18, verified: true }
         }
 
         const tokenContract = new ethers.Contract(address, ERC20_ABI, provider)
@@ -117,15 +93,15 @@ async function resolveToken(token, provider) {
         }
     }
 
-    if (PROTECTED_SYMBOLS.includes(aliasedSymbol)) {
+    if (protectedSymbols.includes(aliasedSymbol)) {
         throw new Error(
             `SECURITY: "${symbol}" is a protected token but no verified address found.\n` +
             `This could be a scam token. Use contract address directly if intended.`
         )
     }
 
-    // Fallback: search DexScreener for Base token
-    const searchResult = await searchToken(aliasedSymbol)
+    // Fallback: search DexScreener
+    const searchResult = await searchToken(aliasedSymbol, chain)
 
     if (searchResult) {
         const address = ethers.getAddress(searchResult.id)
@@ -159,15 +135,18 @@ async function resolveToken(token, provider) {
     }
 
     throw new Error(
-        `Token "${symbol}" not found in verified list or DexScreener (Base).\n` +
+        `Token "${symbol}" not found in verified list or DexScreener (${chain.name}).\n` +
         `Use contract address directly: --from 0x...`
     )
 }
 
-async function resolveByAddress(address, provider) {
+async function resolveByAddress(address, provider, chain) {
     address = ethers.getAddress(address)
 
-    const verifiedEntry = Object.entries(VERIFIED_TOKENS).find(
+    const verifiedTokens = chain.verifiedTokens
+    const protectedSymbols = chain.protectedSymbols || []
+
+    const verifiedEntry = Object.entries(verifiedTokens).find(
         ([, addr]) => addr.toLowerCase() === address.toLowerCase()
     )
 
@@ -184,10 +163,10 @@ async function resolveByAddress(address, provider) {
         verified: !!verifiedEntry,
     }
 
-    if (!verifiedEntry && PROTECTED_SYMBOLS.includes(symbol.toUpperCase())) {
+    if (!verifiedEntry && protectedSymbols.includes(symbol.toUpperCase())) {
         result.warning =
             `WARNING: Token has symbol "${symbol}" but is NOT the verified ${symbol}.\n` +
-            `Verified address: ${VERIFIED_TOKENS[symbol.toUpperCase()]}\n` +
+            `Verified address: ${verifiedTokens[symbol.toUpperCase()]}\n` +
             `You provided: ${address}\n` +
             `This could be a SCAM TOKEN.`
     }
@@ -196,9 +175,6 @@ async function resolveByAddress(address, provider) {
 }
 
 export {
-    VERIFIED_TOKENS,
-    TOKEN_ALIASES,
-    PROTECTED_SYMBOLS,
     ERC20_ABI,
     resolveToken,
     resolveByAddress,

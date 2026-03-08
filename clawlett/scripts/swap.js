@@ -4,7 +4,7 @@
  * Swap tokens via KyberSwap Aggregator (via Safe + Zodiac Roles)
  *
  * Uses KyberSwap's aggregator API to find optimal swap routes across
- * multiple DEXs on Base. Supports all ERC20 tokens with liquidity.
+ * multiple DEXs. Supports all ERC20 tokens with liquidity.
  *
  * Features:
  * - Resolves token symbols to addresses
@@ -14,8 +14,9 @@
  * - Executes swaps via Zodiac Roles delegatecall
  *
  * Usage:
- *   node kyber.js --from ETH --to USDC --amount 0.1
- *   node kyber.js --from USDC --to ETH --amount 100 --execute
+ *   node swap.js --from ETH --to USDC --amount 0.1
+ *   node swap.js --from USDC --to ETH --amount 100 --execute
+ *   node swap.js --chain bnb --from BNB --to USDC --amount 0.1
  *
  * ETH is handled natively by KyberSwap (no wrapping needed).
  */
@@ -24,21 +25,16 @@ import { ethers } from 'ethers'
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
-import { VERIFIED_TOKENS, ERC20_ABI, resolveToken } from './tokens.js'
+import { ERC20_ABI, resolveToken } from './tokens.js'
+import { loadChainAndConfig } from './chains/index.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
-const DEFAULT_RPC_URL = 'https://mainnet.base.org'
-
-// Contracts
-const WETH_ADDRESS = '0x4200000000000000000000000000000000000006'
 const NATIVE_ETH = '0x0000000000000000000000000000000000000000'
 const KYBER_NATIVE_TOKEN = '0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE'
 
 // KyberSwap API constants
-const KYBER_API_BASE = 'https://aggregator-api.kyberswap.com'
-const KYBER_CHAIN = 'base'
 const KYBER_CLIENT_ID = 'clawlett'
 
 // Partner fee (0.5% = 50 bps)
@@ -60,19 +56,19 @@ const ZODIAC_HELPERS_ABI = [
 // KYBERSWAP API
 // ============================================================================
 
-async function getKyberRoute(tokenIn, tokenOut, amountIn, safeAddress) {
+async function getKyberRoute(tokenIn, tokenOut, amountIn, safeAddress, chain) {
+    const kyber = chain.kyberswap
     const params = new URLSearchParams({
         tokenIn: tokenIn.kyberAddress,
         tokenOut: tokenOut.kyberAddress,
         amountIn: amountIn.toString(),
-        // Partner fee parameters (0.1%)
         feeAmount: String(FEE_BPS),
         chargeFeeBy: 'currency_in',
         isInBps: 'true',
         feeReceiver: FEE_RECEIVER,
     })
 
-    const url = `${KYBER_API_BASE}/${KYBER_CHAIN}/api/v1/routes?${params}`
+    const url = `${kyber.apiBase}/${kyber.chain}/api/v1/routes?${params}`
 
     const response = await fetch(url, {
         method: 'GET',
@@ -96,14 +92,15 @@ async function getKyberRoute(tokenIn, tokenOut, amountIn, safeAddress) {
     return data.data
 }
 
-async function buildKyberSwap(routeData, safeAddress, slippageTolerance) {
-    const url = `${KYBER_API_BASE}/${KYBER_CHAIN}/api/v1/route/build`
+async function buildKyberSwap(routeData, safeAddress, slippageTolerance, chain) {
+    const kyber = chain.kyberswap
+    const url = `${kyber.apiBase}/${kyber.chain}/api/v1/route/build`
 
     const requestBody = {
         routeSummary: routeData.routeSummary,
         sender: safeAddress,
         recipient: safeAddress,
-        slippageTolerance: slippageTolerance, // in bps, e.g., 50 = 0.5%
+        slippageTolerance: slippageTolerance,
     }
 
     const response = await fetch(url, {
@@ -137,22 +134,15 @@ function formatAmount(amount, decimals, symbol) {
     return `${num.toLocaleString(undefined, { maximumFractionDigits: 6 })} ${symbol}`
 }
 
-function loadConfig(configDir) {
-    const configPath = path.join(configDir, 'wallet.json')
-    if (!fs.existsSync(configPath)) {
-        throw new Error(`Config not found: ${configPath}\nRun initialize.js first.`)
-    }
-    return JSON.parse(fs.readFileSync(configPath, 'utf8'))
-}
-
 function parseArgs() {
     const args = process.argv.slice(2)
     const result = {
         from: null,
         to: null,
         amount: null,
+        chain: 'base',
         configDir: process.env.WALLET_CONFIG_DIR || path.join(__dirname, '..', 'config'),
-        rpc: process.env.BASE_RPC_URL || DEFAULT_RPC_URL,
+        rpc: null,
         slippage: 50, // 0.5% default in bps
         execute: false,
     }
@@ -170,6 +160,9 @@ function parseArgs() {
             case '--amount':
             case '-a':
                 result.amount = args[++i]
+                break
+            case '--chain':
+                result.chain = args[++i]
                 break
             case '--slippage':
                 // Accept slippage as percentage (e.g., 0.5 for 0.5%) or bps (e.g., 50)
@@ -200,7 +193,7 @@ function parseArgs() {
 
 function printHelp() {
     console.log(`
-Usage: node kyber.js --from <TOKEN> --to <TOKEN> --amount <AMOUNT> [--execute]
+Usage: node swap.js --from <TOKEN> --to <TOKEN> --amount <AMOUNT> [--execute]
 
 Swap tokens via KyberSwap Aggregator (optimal routes across DEXs).
 
@@ -208,25 +201,16 @@ Arguments:
   --from, -f       Token to swap from (symbol or address)
   --to, -t         Token to swap to (symbol or address)
   --amount, -a     Amount to swap
+  --chain          Chain to use (default: base). Available: base, bnb
   --slippage       Slippage in % or bps (default: 0.5% = 50 bps)
   --execute, -x    Execute swap (default: quote only)
   --config-dir, -c Config directory
-  --rpc, -r        RPC URL (default: ${DEFAULT_RPC_URL})
-
-Notes:
-  - KyberSwap aggregates liquidity from multiple DEXs for optimal rates.
-  - Native ETH is supported directly (no wrapping needed).
-  - A 0.5% partner fee is applied (same as CoW Protocol).
-
-Verified Tokens:
-  ETH, WETH, USDC, USDT, DAI, USDS, AERO, cbBTC, VIRTUAL, DEGEN, BRETT, TOSHI, WELL
-  Other tokens are searched via DexScreener (Base pairs).
-  Unverified tokens show a warning with contract address, volume, and liquidity.
+  --rpc, -r        RPC URL (overrides chain default)
 
 Examples:
-  node kyber.js --from ETH --to USDC --amount 0.1
-  node kyber.js --from USDC --to WETH --amount 100 --execute
-  node kyber.js --from USDC --to DAI --amount 50 --execute --slippage 1
+  node swap.js --from ETH --to USDC --amount 0.1
+  node swap.js --from USDC --to WETH --amount 100 --execute
+  node swap.js --chain bnb --from BNB --to USDC --amount 0.1
 `)
 }
 
@@ -251,29 +235,39 @@ async function main() {
         process.exit(1)
     }
 
-    let config
+    let chain, configDir, config
     try {
-        config = loadConfig(args.configDir)
+        const result = loadChainAndConfig(args)
+        chain = result.chain
+        configDir = result.configDir
+        config = result.config
     } catch (error) {
         console.error(`Error: ${error.message}`)
         process.exit(1)
     }
 
-    const provider = new ethers.JsonRpcProvider(args.rpc, 8453, { staticNetwork: true })
+    if (!chain.kyberswap) {
+        console.error(`Error: KyberSwap is not available on ${chain.name}`)
+        process.exit(1)
+    }
+
+    const rpcUrl = args.rpc || process.env.BASE_RPC_URL || chain.rpc
+    const provider = new ethers.JsonRpcProvider(rpcUrl, chain.chainId, { staticNetwork: true })
     const safeAddress = config.safe
 
-    console.log('\nResolving tokens...\n')
+    console.log(`\nChain: ${chain.name}`)
+    console.log('Resolving tokens...\n')
 
     let tokenIn, tokenOut
     try {
-        tokenIn = await resolveToken(args.from, provider)
+        tokenIn = await resolveToken(args.from, provider, chain)
     } catch (error) {
         console.error(`\n${error.message}`)
         process.exit(1)
     }
 
     try {
-        tokenOut = await resolveToken(args.to, provider)
+        tokenOut = await resolveToken(args.to, provider, chain)
     } catch (error) {
         console.error(`\n${error.message}`)
         process.exit(1)
@@ -301,7 +295,7 @@ async function main() {
     let balance
     if (isNativeIn) {
         balance = await provider.getBalance(safeAddress)
-        console.log(`Safe ETH balance: ${formatAmount(balance, 18, 'ETH')}`)
+        console.log(`Safe ${chain.nativeToken} balance: ${formatAmount(balance, 18, chain.nativeToken)}`)
     } else {
         const tokenContract = new ethers.Contract(tokenIn.address, ERC20_ABI, provider)
         balance = await tokenContract.balanceOf(safeAddress)
@@ -318,7 +312,7 @@ async function main() {
 
     let routeData
     try {
-        routeData = await getKyberRoute(tokenIn, tokenOut, amountIn, safeAddress)
+        routeData = await getKyberRoute(tokenIn, tokenOut, amountIn, safeAddress, chain)
     } catch (error) {
         console.error(`${error.message}`)
         console.error(`\nTip: If KyberSwap has no liquidity for this pair, try CoW Protocol instead.`)
@@ -350,7 +344,7 @@ async function main() {
 
     if (!args.execute) {
         console.log('\nQUOTE ONLY - Add --execute to perform the swap')
-        console.log(`\nTo execute: node kyber.js --from "${args.from}" --to "${args.to}" --amount ${args.amount} --execute`)
+        console.log(`\nTo execute: node swap.js --from "${args.from}" --to "${args.to}" --amount ${args.amount} --execute`)
         process.exit(0)
     }
 
@@ -381,7 +375,7 @@ async function main() {
     console.log('Step 1: Building swap transaction...')
     let buildData
     try {
-        buildData = await buildKyberSwap(routeData, safeAddress, args.slippage)
+        buildData = await buildKyberSwap(routeData, safeAddress, args.slippage, chain)
     } catch (error) {
         console.error(`${error.message}`)
         process.exit(1)
@@ -433,14 +427,14 @@ async function main() {
     // Get new balance
     if (isNativeOut) {
         const newBalance = await provider.getBalance(safeAddress)
-        console.log(`   New ETH balance: ${formatAmount(newBalance, 18, 'ETH')}`)
+        console.log(`   New ${chain.nativeToken} balance: ${formatAmount(newBalance, 18, chain.nativeToken)}`)
     } else {
         const outContract = new ethers.Contract(tokenOut.address, ERC20_ABI, provider)
         const newBalance = await outContract.balanceOf(safeAddress)
         console.log(`   New ${tokenOut.symbol} balance: ${formatAmount(newBalance, tokenOut.decimals, tokenOut.symbol)}`)
     }
 
-    console.log(`   Tx: https://basescan.org/tx/${receipt.hash}`)
+    console.log(`   Tx: ${chain.explorer}/tx/${receipt.hash}`)
 }
 
 main().catch(error => {
