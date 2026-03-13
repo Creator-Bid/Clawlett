@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+  <!-- Placeholder claw silhouette - replace with actual PNG -->
+  <defs>
+    <radialGradient id="body" cx="50%" cy="60%" r="45%">
+      <stop offset="0%" stop-color="#e44040"/>
+      <stop offset="100%" stop-color="#8b1a1a"/>
+    </radialGradient>
+  </defs>
+  <!-- Body -->
+  <ellipse cx="60" cy="68" rx="30" ry="25" fill="url(#body)"/>
+  <!-- Left claw -->
+  <path d="M25 50 Q10 35 20 25 Q30 20 35 35 Q32 45 30 50 Z" fill="url(#body)"/>
+  <path d="M20 25 Q8 20 12 12 Q18 8 25 18 Z" fill="#e44040"/>
+  <path d="M35 35 Q28 25 35 18 Q42 22 38 32 Z" fill="#e44040"/>
+  <!-- Right claw -->
+  <path d="M95 50 Q110 35 100 25 Q90 20 85 35 Q88 45 90 50 Z" fill="url(#body)"/>
+  <path d="M100 25 Q112 20 108 12 Q102 8 95 18 Z" fill="#e44040"/>
+  <path d="M85 35 Q92 25 85 18 Q78 22 82 32 Z" fill="#e44040"/>
+  <!-- Eyes -->
+  <circle cx="50" cy="58" r="5" fill="#111"/>
+  <circle cx="70" cy="58" r="5" fill="#111"/>
+  <circle cx="51" cy="56" r="2" fill="#39ff14"/>
+  <circle cx="71" cy="56" r="2" fill="#39ff14"/>
+  <!-- Legs -->
+  <line x1="38" y1="85" x2="28" y2="100" stroke="#8b1a1a" stroke-width="4" stroke-linecap="round"/>
+  <line x1="48" y1="88" x2="40" y2="103" stroke="#8b1a1a" stroke-width="4" stroke-linecap="round"/>
+  <line x1="72" y1="88" x2="80" y2="103" stroke="#8b1a1a" stroke-width="4" stroke-linecap="round"/>
+  <line x1="82" y1="85" x2="92" y2="100" stroke="#8b1a1a" stroke-width="4" stroke-linecap="round"/>
+</svg>
