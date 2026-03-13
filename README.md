@@ -143,7 +143,7 @@ node clawlett/scripts/swap.js --from ETH --to USDC --amount 0.1 --rpc https://ba
 ```
 
 ## Verified Tokens
-
+Token lists are defined in `clawlett/scripts/lib/tokens.js` and shared by both `swap.js` and `balance.js`.
 Protected tokens can only resolve to verified addresses (scam protection):
 
 | Token | Address |
