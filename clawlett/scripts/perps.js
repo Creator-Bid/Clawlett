@@ -57,7 +57,15 @@ const ORDERLY_VAULT   = '0x816f722424B49Cf1275cc86DA9840Fbd5a6167e9'
 const VERIFY_CONTRACT = '0x6F7a338F2aA472838dEFD3283eB360d4Dff5D203'
 const USDC_ADDRESS    = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913'
 
-// EIP-712 domain
+// EIP-712 domains
+// Off-chain API signing (registration, add key, withdraw) uses the off-chain verifying contract
+const ORDERLY_DOMAIN_OFFCHAIN = {
+    name: 'Orderly',
+    version: '1',
+    chainId: CHAIN_ID,
+    verifyingContract: '0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC',
+}
+// On-chain signing uses the verify contract
 const ORDERLY_DOMAIN = {
     name: 'Orderly',
     version: '1',
@@ -533,7 +541,7 @@ async function handleSetup(args) {
             timestamp,
             registrationNonce,
         }
-        const signature = await agentWallet.signTypedData(ORDERLY_DOMAIN, EIP712_TYPES, registrationMsg)
+        const signature = await agentWallet.signTypedData(ORDERLY_DOMAIN_OFFCHAIN, { Registration: EIP712_TYPES.Registration }, registrationMsg)
 
         // POST to register
         const regRes = await fetch(`${ORDERLY_API}/v1/register_account`, {
@@ -542,7 +550,7 @@ async function handleSetup(args) {
             body: JSON.stringify({
                 signature,
                 userAddress:      agentWallet.address.toLowerCase(),
-                verifyingContract: VERIFY_CONTRACT,
+                verifyingContract: '0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC',
                 message:          { ...registrationMsg, chainId: CHAIN_ID, timestamp: Number(timestamp), registrationNonce: Number(registrationNonce) },
             }),
         })
@@ -567,7 +575,7 @@ async function handleSetup(args) {
         timestamp,
         expiration,
     }
-    const keySig = await agentWallet.signTypedData(ORDERLY_DOMAIN, EIP712_TYPES, addKeyMsg)
+    const keySig = await agentWallet.signTypedData(ORDERLY_DOMAIN_OFFCHAIN, { AddOrderlyKey: EIP712_TYPES.AddOrderlyKey }, addKeyMsg)
 
     const keyRes = await fetch(`${ORDERLY_API}/v1/orderly_key`, {
         method: 'POST',
@@ -575,7 +583,7 @@ async function handleSetup(args) {
         body: JSON.stringify({
             signature:         keySig,
             userAddress:       agentWallet.address.toLowerCase(),
-            verifyingContract: VERIFY_CONTRACT,
+            verifyingContract: '0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC',
             message: {
                 ...addKeyMsg,
                 chainId:    CHAIN_ID,
@@ -776,13 +784,13 @@ async function handleWithdraw(args) {
         withdrawNonce,
         timestamp,
     }
-    const signature = await agentWallet.signTypedData(ORDERLY_DOMAIN, EIP712_TYPES, withdrawMsg)
+    const signature = await agentWallet.signTypedData(ORDERLY_DOMAIN_OFFCHAIN, { Withdraw: EIP712_TYPES.Withdraw }, withdrawMsg)
 
     // Submit withdrawal request
     const body = {
         signature,
         userAddress:       agentAddr.toLowerCase(),
-        verifyingContract: VERIFY_CONTRACT,
+        verifyingContract: '0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC',
         message: {
             brokerId:      BROKER_ID,
             chainId:       CHAIN_ID,

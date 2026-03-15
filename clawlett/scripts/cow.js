@@ -16,8 +16,8 @@
  * - Polls order status until filled
  *
  * Usage:
- *   node swap.js --from ETH --to USDC --amount 0.1
- *   node swap.js --from USDC --to ETH --amount 100 --execute
+ *   node cow.js --from ETH --to USDC --amount 0.1
+ *   node cow.js --from USDC --to ETH --amount 100 --execute
  *
  * ETH is auto-wrapped to WETH when needed (CoW requires ERC20s)
  */
@@ -26,21 +26,13 @@ import { ethers } from 'ethers'
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
-import { VERIFIED_TOKENS, ERC20_ABI, resolveToken } from './tokens.js'
+import { ERC20_ABI, resolveToken } from './tokens.js'
+import { loadChainAndConfig } from './chains/index.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
-const DEFAULT_RPC_URL = 'https://mainnet.base.org'
-
-// Contracts
-const WETH_ADDRESS = '0x4200000000000000000000000000000000000006'
 const NATIVE_ETH = '0x0000000000000000000000000000000000000000'
-
-// CoW Protocol constants
-const COW_API_BASE = 'https://api.cow.fi/base'
-const COW_SETTLEMENT = '0x9008D19f58AAbD9eD0D60971565AA8510560ab41'
-const COW_VAULT_RELAYER = '0xC92E8bdf79f0507f65a392b0ab4667716BFE0110'
 
 // bytes32 keccak hashes for order struct fields
 const KIND_SELL = '0xf3b277728b3fee749481eb3e0b3b48980dbbab78658fc419025cb16eee346775'
@@ -65,8 +57,8 @@ const ZODIAC_HELPERS_ABI = [
 // COW PROTOCOL API
 // ============================================================================
 
-async function getCowQuote(sellToken, buyToken, sellAmount, safeAddress) {
-    const response = await fetch(`${COW_API_BASE}/api/v1/quote`, {
+async function getCowQuote(sellToken, buyToken, sellAmount, safeAddress, cowConfig) {
+    const response = await fetch(`${cowConfig.apiBase}/api/v1/quote`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -92,7 +84,7 @@ async function getCowQuote(sellToken, buyToken, sellAmount, safeAddress) {
     return data
 }
 
-async function buildAppData(slippageBips) {
+async function buildAppData(slippageBips, cowConfig) {
     const doc = {
         appCode: "Clawlett",
         environment: "production",
@@ -111,7 +103,7 @@ async function buildAppData(slippageBips) {
     const appDataHash = ethers.keccak256(ethers.toUtf8Bytes(fullAppData))
 
     // Register with CoW so solvers can resolve the hash
-    await fetch(`${COW_API_BASE}/api/v1/app_data/${appDataHash}`, {
+    await fetch(`${cowConfig.apiBase}/api/v1/app_data/${appDataHash}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ fullAppData }),
@@ -120,15 +112,15 @@ async function buildAppData(slippageBips) {
     return appDataHash
 }
 
-async function submitCowOrder(quoteResponse, safeAddress, timeoutSeconds) {
+async function submitCowOrder(quoteResponse, safeAddress, timeoutSeconds, cowConfig) {
     const q = quoteResponse.quote
 
     // Default 30 minutes — matches CoW FE. Solvers need time to batch orders.
     const validTo = Math.floor(Date.now() / 1000) + (timeoutSeconds || 1800)
 
     // Smart slippage (based on CoW FE, more aggressive for small orders):
-    //   1. Fee-based:   150% of feeAmount (dominates small orders → wider tolerance)
-    //   2. Volume-based: 0.5% of sellAmount (dominates large orders → ~0.5%)
+    //   1. Fee-based:   150% of feeAmount (dominates small orders -> wider tolerance)
+    //   2. Volume-based: 0.5% of sellAmount (dominates large orders -> ~0.5%)
     const feeSlippage = BigInt(q.feeAmount) * 3n / 2n
     const volumeSlippage = BigInt(q.sellAmount) * 5n / 1000n
     const totalSlippage = feeSlippage + volumeSlippage
@@ -140,7 +132,7 @@ async function submitCowOrder(quoteResponse, safeAddress, timeoutSeconds) {
 
     // Build appData with slippage metadata (matches CoW FE)
     const slippageBips = Number(buySlippage * 10000n / BigInt(q.buyAmount))
-    const appData = await buildAppData(slippageBips)
+    const appData = await buildAppData(slippageBips, cowConfig)
 
     const order = {
         sellToken: q.sellToken,
@@ -160,7 +152,7 @@ async function submitCowOrder(quoteResponse, safeAddress, timeoutSeconds) {
         from: safeAddress,
     }
 
-    const response = await fetch(`${COW_API_BASE}/api/v1/orders`, {
+    const response = await fetch(`${cowConfig.apiBase}/api/v1/orders`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(order),
@@ -192,12 +184,12 @@ function balanceToBytes32(balance) {
     }
 }
 
-async function pollOrderStatus(orderUid, timeoutMs) {
+async function pollOrderStatus(orderUid, timeoutMs, cowConfig) {
     const startTime = Date.now()
     const pollInterval = 5000
 
     while (Date.now() - startTime < timeoutMs) {
-        const response = await fetch(`${COW_API_BASE}/api/v1/orders/${orderUid}`)
+        const response = await fetch(`${cowConfig.apiBase}/api/v1/orders/${orderUid}`)
 
         if (response.ok) {
             const order = await response.json()
@@ -233,22 +225,15 @@ function formatAmount(amount, decimals, symbol) {
     return `${num.toLocaleString(undefined, { maximumFractionDigits: 6 })} ${symbol}`
 }
 
-function loadConfig(configDir) {
-    const configPath = path.join(configDir, 'wallet.json')
-    if (!fs.existsSync(configPath)) {
-        throw new Error(`Config not found: ${configPath}\nRun initialize.js first.`)
-    }
-    return JSON.parse(fs.readFileSync(configPath, 'utf8'))
-}
-
 function parseArgs() {
     const args = process.argv.slice(2)
     const result = {
         from: null,
         to: null,
         amount: null,
+        chain: 'base',
         configDir: process.env.WALLET_CONFIG_DIR || path.join(__dirname, '..', 'config'),
-        rpc: process.env.BASE_RPC_URL || DEFAULT_RPC_URL,
+        rpc: null,
         slippage: 0.05,
         execute: false,
         timeout: 1800, // 30 minutes default (matches CoW FE)
@@ -267,6 +252,9 @@ function parseArgs() {
             case '--amount':
             case '-a':
                 result.amount = args[++i]
+                break
+            case '--chain':
+                result.chain = args[++i]
                 break
             case '--slippage':
                 result.slippage = parseFloat(args[++i])
@@ -298,7 +286,7 @@ function parseArgs() {
 
 function printHelp() {
     console.log(`
-Usage: node swap.js --from <TOKEN> --to <TOKEN> --amount <AMOUNT> [--execute]
+Usage: node cow.js --from <TOKEN> --to <TOKEN> --amount <AMOUNT> [--execute]
 
 Swap tokens via CoW Protocol (MEV-protected).
 
@@ -306,25 +294,17 @@ Arguments:
   --from, -f       Token to swap from (symbol or address)
   --to, -t         Token to swap to (symbol or address)
   --amount, -a     Amount to swap
+  --chain          Chain to use (default: base). Available: base, bnb
   --slippage       Slippage 0-0.5 (default: 0.05 = 5%)
   --execute, -x    Execute swap (default: quote only)
   --timeout        Order timeout in seconds (default: 1800 = 30min)
   --config-dir, -c Config directory
-  --rpc, -r        RPC URL (default: ${DEFAULT_RPC_URL})
-
-Notes:
-  - CoW Protocol only works with ERC20 tokens. ETH is auto-wrapped to WETH.
-  - Orders are MEV-protected (no sandwich attacks).
-
-Verified Tokens:
-  ETH, WETH, USDC, USDT, DAI, USDS, AERO, cbBTC, VIRTUAL, DEGEN, BRETT, TOSHI, WELL
-  Other tokens are searched via DexScreener (Base pairs).
-  Unverified tokens show a warning with contract address, volume, and liquidity.
+  --rpc, -r        RPC URL (overrides chain default)
 
 Examples:
-  node swap.js --from ETH --to USDC --amount 0.1
-  node swap.js --from USDC --to WETH --amount 100 --execute
-  node swap.js --from USDC --to DAI --amount 50 --execute --timeout 600
+  node cow.js --from ETH --to USDC --amount 0.1
+  node cow.js --from USDC --to WETH --amount 100 --execute
+  node cow.js --from USDC --to DAI --amount 50 --execute --timeout 600
 `)
 }
 
@@ -341,29 +321,42 @@ async function main() {
         process.exit(1)
     }
 
-    let config
+    let chain, configDir, config
     try {
-        config = loadConfig(args.configDir)
+        const result = loadChainAndConfig(args)
+        chain = result.chain
+        configDir = result.configDir
+        config = result.config
     } catch (error) {
         console.error(`Error: ${error.message}`)
         process.exit(1)
     }
 
-    const provider = new ethers.JsonRpcProvider(args.rpc, 8453, { staticNetwork: true })
+    if (!chain.cow) {
+        console.error(`Error: CoW Protocol is not available on ${chain.name}`)
+        process.exit(1)
+    }
+
+    const cowConfig = chain.cow
+    const wethAddress = chain.wrappedNative
+
+    const rpcUrl = args.rpc || process.env.BASE_RPC_URL || chain.rpc
+    const provider = new ethers.JsonRpcProvider(rpcUrl, chain.chainId, { staticNetwork: true })
     const safeAddress = config.safe
 
-    console.log('\nResolving tokens...\n')
+    console.log(`\nChain: ${chain.name}`)
+    console.log('Resolving tokens...\n')
 
     let tokenIn, tokenOut
     try {
-        tokenIn = await resolveToken(args.from, provider)
+        tokenIn = await resolveToken(args.from, provider, chain)
     } catch (error) {
         console.error(`\n${error.message}`)
         process.exit(1)
     }
 
     try {
-        tokenOut = await resolveToken(args.to, provider)
+        tokenOut = await resolveToken(args.to, provider, chain)
     } catch (error) {
         console.error(`\n${error.message}`)
         process.exit(1)
@@ -373,12 +366,12 @@ async function main() {
     let ethSubstituted = false
     if (tokenIn.address.toLowerCase() === NATIVE_ETH) {
         console.log('Note: CoW Protocol requires ERC20 tokens. Using WETH instead of ETH.')
-        tokenIn = { ...tokenIn, address: WETH_ADDRESS, symbol: 'WETH' }
+        tokenIn = { ...tokenIn, address: wethAddress, symbol: 'WETH' }
         ethSubstituted = true
     }
     if (tokenOut.address.toLowerCase() === NATIVE_ETH) {
         console.log('Note: CoW Protocol requires ERC20 tokens. Receiving WETH instead of ETH.')
-        tokenOut = { ...tokenOut, address: WETH_ADDRESS, symbol: 'WETH' }
+        tokenOut = { ...tokenOut, address: wethAddress, symbol: 'WETH' }
         ethSubstituted = true
     }
 
@@ -396,23 +389,23 @@ async function main() {
     // Check balance — when selling ETH via CoW, check both ETH and WETH
     let balance
     let wrapAmount = 0n
-    if (ethSubstituted && tokenIn.address.toLowerCase() === WETH_ADDRESS.toLowerCase()) {
-        const wethContract = new ethers.Contract(WETH_ADDRESS, ERC20_ABI, provider)
+    if (ethSubstituted && tokenIn.address.toLowerCase() === wethAddress.toLowerCase()) {
+        const wethContract = new ethers.Contract(wethAddress, ERC20_ABI, provider)
         const wethBalance = await wethContract.balanceOf(safeAddress)
         const ethBalance = await provider.getBalance(safeAddress)
 
         console.log(`Safe WETH balance: ${formatAmount(wethBalance, 18, 'WETH')}`)
-        console.log(`Safe ETH balance:  ${formatAmount(ethBalance, 18, 'ETH')}`)
+        console.log(`Safe ${chain.nativeToken} balance:  ${formatAmount(ethBalance, 18, chain.nativeToken)}`)
 
         if (wethBalance >= amountIn) {
             balance = wethBalance
         } else if (wethBalance + ethBalance >= amountIn) {
             wrapAmount = amountIn - wethBalance
             balance = amountIn // sufficient after wrapping
-            console.log(`Will wrap ${formatAmount(wrapAmount, 18, 'ETH')} to WETH as part of the swap transaction`)
+            console.log(`Will wrap ${formatAmount(wrapAmount, 18, chain.nativeToken)} to WETH as part of the swap transaction`)
         } else {
-            console.error(`\nInsufficient ETH + WETH balance in Safe`)
-            console.error(`Need ${formatAmount(amountIn, 18, 'WETH')}, have ${formatAmount(wethBalance, 18, 'WETH')} + ${formatAmount(ethBalance, 18, 'ETH')}`)
+            console.error(`\nInsufficient ${chain.nativeToken} + WETH balance in Safe`)
+            console.error(`Need ${formatAmount(amountIn, 18, 'WETH')}, have ${formatAmount(wethBalance, 18, 'WETH')} + ${formatAmount(ethBalance, 18, chain.nativeToken)}`)
             process.exit(1)
         }
     } else {
@@ -431,7 +424,7 @@ async function main() {
 
     let quoteResponse
     try {
-        quoteResponse = await getCowQuote(tokenIn, tokenOut, amountIn, safeAddress)
+        quoteResponse = await getCowQuote(tokenIn, tokenOut, amountIn, safeAddress, cowConfig)
     } catch (error) {
         console.error(`${error.message}`)
         console.error(`\nTip: If CoW has no liquidity for this pair, try using the contract address directly.`)
@@ -462,14 +455,14 @@ async function main() {
     console.log(`  Min receive:  ${formatAmount(minReceive, tokenOut.decimals, tokenOut.symbol)} (${slippagePct.toFixed(2)}% smart slippage)`)
     console.log(`  Expires in:   ${args.timeout}s`)
     if (wrapAmount > 0n) {
-        console.log(`  ETH wrap:     ${formatAmount(wrapAmount, 18, 'ETH')} → WETH (bundled in tx)`)
+        console.log(`  ${chain.nativeToken} wrap:     ${formatAmount(wrapAmount, 18, chain.nativeToken)} -> WETH (bundled in tx)`)
     }
     console.log(`  MEV protected via CoW Protocol batch auction`)
     console.log('='.repeat(55))
 
     if (!args.execute) {
         console.log('\nQUOTE ONLY - Add --execute to perform the swap')
-        console.log(`\nTo execute: node swap.js --from "${args.from}" --to "${args.to}" --amount ${args.amount} --execute`)
+        console.log(`\nTo execute: node cow.js --from "${args.from}" --to "${args.to}" --amount ${args.amount} --execute`)
         process.exit(0)
     }
 
@@ -500,7 +493,7 @@ async function main() {
     console.log('Step 1: Submitting order to CoW Protocol...')
     let orderUid, order
     try {
-        const result = await submitCowOrder(quoteResponse, safeAddress, args.timeout)
+        const result = await submitCowOrder(quoteResponse, safeAddress, args.timeout, cowConfig)
         orderUid = result.orderUid
         order = result.order
     } catch (error) {
@@ -508,20 +501,18 @@ async function main() {
         process.exit(1)
     }
     console.log(`   Order UID: ${orderUid}`)
-    console.log(`   Explorer:  https://explorer.cow.fi/base/orders/${orderUid}`)
+    console.log(`   Explorer:  https://explorer.cow.fi/${chain.id}/orders/${orderUid}`)
 
     // Step 2: Build on-chain operations (wrap + approve + presign) and execute
-    // All operations are bundled into a single MultiSend transaction when multiple
-    // steps are needed, saving gas and ensuring atomicity.
     console.log('\nStep 2: Executing on-chain operations...')
 
     const zodiacHelpersInterface = new ethers.Interface(ZODIAC_HELPERS_ABI)
     const cowPresignInterface = new ethers.Interface(COW_PRESIGN_ABI)
     const multiSendTxs = []
 
-    // 2a: Wrap ETH → WETH if needed (user said ETH, CoW needs WETH)
+    // 2a: Wrap ETH -> WETH if needed (user said ETH, CoW needs WETH)
     if (wrapAmount > 0n) {
-        console.log(`   - Wrap ${formatAmount(wrapAmount, 18, 'ETH')} → WETH`)
+        console.log(`   - Wrap ${formatAmount(wrapAmount, 18, chain.nativeToken)} -> WETH`)
         const wrapData = zodiacHelpersInterface.encodeFunctionData('wrapETH', [wrapAmount])
         multiSendTxs.push({ operation: 1, to: zodiacHelpersAddress, value: 0n, data: wrapData })
     }
@@ -568,7 +559,6 @@ async function main() {
             process.exit(1)
         }
     }
-    const lastTxHash = multiSendTxs.length > 0 ? 'see above' : 'none'
 
     console.log('   All on-chain operations complete!')
 
@@ -576,7 +566,7 @@ async function main() {
     console.log('\nStep 3: Waiting for order to be filled...')
     console.log(`   Timeout: ${args.timeout}s`)
 
-    const result = await pollOrderStatus(orderUid, args.timeout * 1000)
+    const result = await pollOrderStatus(orderUid, args.timeout * 1000, cowConfig)
 
     switch (result.status) {
         case 'fulfilled': {
@@ -588,7 +578,7 @@ async function main() {
             console.log(`   Sold: ${formatAmount(sellAmount, tokenIn.decimals, tokenIn.symbol)}`)
             console.log(`   Received: ~${formatAmount(buyAmount, tokenOut.decimals, tokenOut.symbol)}`)
             console.log(`   New ${tokenOut.symbol} balance: ${formatAmount(newBalance, tokenOut.decimals, tokenOut.symbol)}`)
-            console.log(`   Explorer: https://explorer.cow.fi/base/orders/${orderUid}`)
+            console.log(`   Explorer: https://explorer.cow.fi/${chain.id}/orders/${orderUid}`)
             break
         }
         case 'expired':
@@ -602,7 +592,7 @@ async function main() {
             break
         case 'timeout':
             console.error(`\nTimed out after ${args.timeout}s. Order may still be filled.`)
-            console.error(`Check status: https://explorer.cow.fi/base/orders/${orderUid}`)
+            console.error(`Check status: https://explorer.cow.fi/${chain.id}/orders/${orderUid}`)
             process.exit(1)
             break
     }
